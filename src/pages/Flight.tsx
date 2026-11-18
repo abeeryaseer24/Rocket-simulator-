@@ -361,6 +361,9 @@ export default function Flight() {
             <BarMeter label="Throttle" value={s.throttle} max={1} display={`${(s.throttle * 100).toFixed(0)} %`} />
             <BarMeter label={`Propellant, ${vehicle.stages[s.stage]?.name.toLowerCase()}`} value={s.propFraction} max={1} display={`${(s.propFraction * 100).toFixed(0)} %`} />
             <BarMeter label="Mach" value={s.alt < 90000 ? s.mach : 0} max={25} display={s.alt < 90000 ? s.mach.toFixed(2) : 'n/a'} />
+            {vehicle.control?.enabled && (
+              <BarMeter label="Engine gimbal" value={s.gimbal} max={vehicle.control.gimbalMax} display={`${s.gimbal.toFixed(2)}°`} warnAt={vehicle.control.gimbalMax * 0.95} />
+            )}
           </div>
           <button className="flight-more" onClick={() => setMore((m) => !m)} aria-expanded={more}>
             {more ? 'Fewer readings' : 'More readings'}

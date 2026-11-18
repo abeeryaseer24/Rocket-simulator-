@@ -5,6 +5,7 @@ import ShareButton from '../components/ShareButton';
 import { RAD } from '../physics/constants';
 import { simulate, type FlightResult } from '../sim/simulate';
 import { useSim } from '../sim/store';
+import { ControlSection } from './bay/ControlSection';
 import { EnginesSection, StagesSection } from './bay/StageSections';
 import { AeroSection, BoostersSection, GuidanceSection, PayloadSection, RecoverySection, SiteSection } from './bay/OtherSections';
 import './bay.css';
@@ -17,6 +18,7 @@ const SECTIONS: Array<[string, string]> = [
   ['aero', 'Aerodynamics'],
   ['guidance', 'Guidance'],
   ['recovery', 'Recovery'],
+  ['control', 'Control'],
   ['site', 'Launch site'],
 ];
 
@@ -75,6 +77,7 @@ export default function VehicleBay() {
         {section === 'guidance' && <GuidanceSection />}
         {section === 'site' && <SiteSection />}
         {section === 'recovery' && <RecoverySection />}
+        {section === 'control' && <ControlSection />}
       </div>
       <FlightCheck />
     </div>

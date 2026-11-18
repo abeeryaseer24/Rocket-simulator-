@@ -358,4 +358,40 @@ export const LESSONS: Lesson[] = [
       </>
     ),
   },
+  {
+    id: 'stability',
+    title: 'Stability and thrust-vector control',
+    discipline: 'Control engineering',
+    summary: 'Why a rocket without fins wants to tumble, and how swivelling engines stop it.',
+    body: () => (
+      <>
+        <p>
+          Air pushing on a vehicle at angle of attack <TeX>{'\\alpha'}</TeX> produces a sideways normal force that acts at the{' '}
+          <em>centre of pressure</em> (CP). Its moment about the centre of mass (CG) is
+        </p>
+        <TeX block>{'M_{aero} = q\\, S\\, C_{N\\alpha}\\, \\alpha\\, (x_{cp} - x_{cg})'}</TeX>
+        <p>
+          If the CP is behind the CG, like on an arrow, the moment swings the nose back into the wind: <em>statically stable</em>.
+          A large launch vehicle has no fins, so its nose cone carries nearly all the lift and the CP sits far forward. The
+          moment then <em>increases</em> α. Left alone, the vehicle would turn sideways within seconds of entering the jet stream.
+        </p>
+        <p>
+          The fix is to swivel (gimbal) the engines. Thrust <TeX>T</TeX> deflected by δ at a lever arm <TeX>{'\\ell'}</TeX> behind
+          the CG gives a control moment <TeX>{'M_c = T\\,\\ell\\,\\sin\\delta'}</TeX>. The autopilot is a controller on attitude
+          error <TeX>{'\\theta_e'}</TeX> and body rate <TeX>{'\\omega'}</TeX>:
+        </p>
+        <TeX block>{'I\\,\\dot\\omega = M_c + M_{aero}, \\qquad M_c = I\\left(\\omega_n^2\\,\\theta_e - 2\\zeta\\omega_n\\,\\omega\\right) - M_{aero}'}</TeX>
+        <p>
+          The bandwidth <TeX>{'\\omega_n'}</TeX> sets how fast errors die out and the damping ratio <TeX>{'\\zeta'}</TeX> how much
+          they overshoot. The gimbal limit caps <TeX>M_c</TeX>. When a gust demands more moment than the engines can give, the
+          vehicle can't be saved. That's why launches are scrubbed for high winds aloft.
+        </p>
+        <p>
+          The centre of mass isn't fixed either. Propellant drains from the bottom of each tank, so the CG creeps toward the nose
+          and the moment of inertia shrinks through the burn. The simulator recomputes both every step.
+        </p>
+        <Try to="/vehicle/control">Turn attitude control on, then cut the gimbal limit until the vehicle can't hold its course.</Try>
+      </>
+    ),
+  },
 ];

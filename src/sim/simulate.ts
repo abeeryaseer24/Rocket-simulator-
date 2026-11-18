@@ -13,6 +13,7 @@ import {
 import { elementsFromState, flightPathAngle, type OrbitalElements } from '../physics/orbit';
 import { massFlow, thrustAt } from '../physics/propulsion';
 import { add, addScaled, angleBetween, cross, dot, norm, scale, sub, unit, type Vec3 } from '../physics/vec';
+import { DEFAULT_CONTROL, massProps, stepAttitude, windSpeed, type AttitudeState } from './attitude';
 import { recoverWithShip, type RecoveryResult, type RecoveryStart } from './recovery';
 import { DEFAULT_RECOVERY, liftoffMass, liftoffThrust, type Vehicle } from './vehicle';
 
@@ -57,6 +58,12 @@ export interface Sample {
   pos: Vec3;
   dir: Vec3;
   burning: boolean;
+  /** Engine gimbal deflection [deg] (attitude control on) */
+  gimbal: number;
+  /** Attitude error from the guidance command [deg] */
+  attErr: number;
+  /** Horizontal wind speed at this altitude [m/s] */
+  wind: number;
 }
 
 export type EventKind =
@@ -166,6 +173,17 @@ export function simulate(vehicle: Vehicle, opts: SimOptions = {}): FlightResult 
   const corePropLeft = v.stages.map((s, i) => (i === 0 ? s.propMass - reserve0 : s.propMass));
   const ascentProp = (j: number) => (j === 0 ? v.stages[0].propMass - reserve0 : v.stages[j].propMass);
   let recoveryStart: RecoveryStart | null = null;
+  const ctl = v.control?.enabled ? { ...DEFAULT_CONTROL, ...v.control } : null;
+  let att: AttitudeState = { b: localFrame(r).up, w: [0, 0, 0], gimbal: 0, err: 0 };
+  /** Air-relative velocity including the wind profile when attitude control (and its wind model) is on */
+  const airRel = (rr: Vec3, vv: Vec3, alt: number): Vec3 => {
+    const base = airRelativeVelocity(rr, vv);
+    if (!ctl) return base;
+    const ws = windSpeed(ctl, alt);
+    const { east: e2, north: n2 } = localFrame(rr);
+    const a = ctl.windToward * DEG;
+    return sub(base, add(scale(n2, ws * Math.cos(a)), scale(e2, ws * Math.sin(a))));
+  };
   let boosterProp = hasBoosters ? v.boosters.stage.propMass : 0;
   let boostersAttached = hasBoosters;
   let fairingAttached = v.fairing.mass > 0;
@@ -239,7 +257,7 @@ export function simulate(vehicle: Vehicle, opts: SimOptions = {}): FlightResult 
   while (!ended && t < maxTime) {
     const alt = altOf(r, t);
     const atm = atmosphere(alt);
-    const vrel = airRelativeVelocity(r, vel);
+    const vrel = airRel(r, vel, alt);
     const vrelM = norm(vrel);
     const mach = vrelM / atm.a;
     const q = 0.5 * atm.rho * vrelM * vrelM;
@@ -324,13 +342,24 @@ export function simulate(vehicle: Vehicle, opts: SimOptions = {}): FlightResult 
     if (pendingSepAt >= 0) h = Math.min(h, Math.max(pendingSepAt - t, 1e-4));
     if (pendingIgnAt >= 0) h = Math.min(h, Math.max(pendingIgnAt - t, 1e-4));
     h = Math.max(h, 1e-5);
+
+    // ---------- attitude: rigid body + thrust-vector control ----------
+    let tDir: Vec3 = dir;
+    let bDir: Vec3 = dir;
+    if (ctl) {
+      const mp = massProps(v, k, corePropLeft, boostersAttached, boosterProp, fairingAttached);
+      const res = stepAttitude(att, dir, vrel, q, thrust, mp, ctl, h);
+      att = res.state;
+      tDir = res.thrustDir;
+      bDir = att.b;
+    }
     const mdot = mdotCore + mdotBoost;
     const Aref = refArea();
 
     // ---------- sample before stepping ----------
     const gvec = gravityJ2(r);
     const drag = q * cdAt(v.cd, mach) * Aref;
-    const aoa = vrelM > 1 && thrust > 0 ? angleBetween(dir, vrel) : 0;
+    const aoa = vrelM > 1 && thrust > 0 ? angleBetween(bDir, vrel) : 0;
     const axial = (thrust - drag * Math.cos(aoa)) / m / G0;
     const heat = suttonGraves(atm.rho, vrelM, v.noseRadius);
     if (q > maxQ.q) maxQ = { q, t, alt };
@@ -356,7 +385,7 @@ export function simulate(vehicle: Vehicle, opts: SimOptions = {}): FlightResult 
         drag,
         mass: m,
         throttle: coreBurning ? thr : 0,
-        pitch: 90 - angleBetween(dir, up) * RAD,
+        pitch: 90 - angleBetween(bDir, up) * RAD,
         gamma: flightPathAngle(r, vel) * RAD,
         aoa: aoa * RAD,
         qAlpha: q * aoa * RAD,
@@ -375,8 +404,11 @@ export function simulate(vehicle: Vehicle, opts: SimOptions = {}): FlightResult 
         lossDrag: lossT.drag,
         lossSteering: lossT.steer,
         pos: r,
-        dir,
+        dir: bDir,
         burning: thrust > 0,
+        gimbal: ctl ? att.gimbal : 0,
+        attErr: ctl ? att.err : 0,
+        wind: ctl && alt < 40000 ? windSpeed(ctl, alt) : 0,
       });
       sampleClock = t + (thrust > 0 ? 0.2 : 1.0);
     }
@@ -387,7 +419,7 @@ export function simulate(vehicle: Vehicle, opts: SimOptions = {}): FlightResult 
       const tt = t + tau;
       const z = altOf(rr, tt);
       const a2 = atmosphere(z);
-      const vr2 = airRelativeVelocity(rr, vv);
+      const vr2 = airRel(rr, vv, z);
       const vr2m = norm(vr2);
       const q2 = 0.5 * a2.rho * vr2m * vr2m;
       const D = q2 * cdAt(v.cd, vr2m / a2.a) * Aref;
@@ -395,7 +427,7 @@ export function simulate(vehicle: Vehicle, opts: SimOptions = {}): FlightResult 
         (coreBurning ? thrustAt(eng, a2.p, thr) : 0) +
         (boostBurning ? thrustAt(v.boosters.stage.engine, a2.p) * v.boosters.count : 0);
       let acc = gravityJ2(rr);
-      acc = addScaled(acc, dir, T2 / mm);
+      acc = addScaled(acc, tDir, T2 / mm);
       if (vr2m > 1e-6) acc = addScaled(acc, vr2, -D / (mm * vr2m));
       return [vv, acc];
     };
@@ -409,7 +441,7 @@ export function simulate(vehicle: Vehicle, opts: SimOptions = {}): FlightResult 
     // ---------- loss accounting (Δv budget) ----------
     if (thrust > 0) {
       lossT.dvIdeal += (thrust / m) * h;
-      lossT.steer += (thrust / m) * (1 - Math.cos(angleBetween(dir, vel))) * h;
+      lossT.steer += (thrust / m) * (1 - Math.cos(angleBetween(tDir, vel))) * h;
     }
     if (thrust > 0 || !cutoff) {
       lossT.grav += norm(gvec) * Math.sin(flightPathAngle(r, vel)) * h;

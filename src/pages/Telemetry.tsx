@@ -184,9 +184,34 @@ const CHANNELS: Channel[] = [
     explain: 'D = q·C_D·A. Compare its peak with thrust: drag is a small fraction, which is why drag loss is the smallest item in the Δv budget.',
     lesson: 'drag',
   },
+  {
+    id: 'gimbal',
+    group: 'Control',
+    label: 'Engine gimbal',
+    yLabel: 'Gimbal (°)',
+    series: [{ label: 'Gimbal angle', y: (s) => s.gimbal ?? 0 }],
+    explain: 'How far the engines swivel to hold attitude. Flat at zero unless attitude control is on (Vehicle Bay, Control tab). Watch it peak where the jet stream and max-Q coincide.',
+  },
+  {
+    id: 'attitude',
+    group: 'Control',
+    label: 'Attitude error',
+    yLabel: 'Error (°)',
+    series: [{ label: 'Attitude error', y: (s) => s.attErr ?? 0 }],
+    explain: 'Angle between where guidance wants the vehicle to point and where it actually points. A good autopilot keeps this to a fraction of a degree.',
+  },
+  {
+    id: 'wind',
+    group: 'Control',
+    label: 'Wind',
+    yLabel: 'Wind (m/s)',
+    series: [{ label: 'Wind speed', y: (s) => s.wind ?? 0 }],
+    when: (s) => s.alt < 40000,
+    explain: 'The wind the vehicle flew through. Wind turns the air-relative velocity away from the nose, creating angle of attack and the q·α bending load.',
+  },
 ];
 
-const GROUPS = ['Trajectory', 'Aerodynamics', 'Propulsion', 'Loads'];
+const GROUPS = ['Trajectory', 'Aerodynamics', 'Propulsion', 'Loads', 'Control'];
 
 export default function Telemetry() {
   const { channel = 'altitude' } = useParams();

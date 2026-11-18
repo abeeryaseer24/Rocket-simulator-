@@ -32,7 +32,7 @@ export default function Academy() {
           <div className="ac-index">
             <h1>Rocket science, one idea at a time</h1>
             <p className="lede">
-              Eleven short lessons, in order. Each one derives an equation, lets you play with it, and points to the place in the
+              Twelve short lessons, in order. Each one derives an equation, lets you play with it, and points to the place in the
               simulator where you can watch it act on a real flight.
             </p>
             <ol className="ac-list">

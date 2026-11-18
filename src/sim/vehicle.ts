@@ -1,4 +1,5 @@
 import type { CdTable } from '../physics/aero';
+import type { ControlSpec } from './attitude';
 import { G0, P0 } from '../physics/constants';
 import { idealDeltaV, ispAt, massFlow, seaLevelThrust, tankVolumes, type EngineSpec, type PropellantKind } from '../physics/propulsion';
 
@@ -107,6 +108,8 @@ export interface Vehicle {
   site: LaunchSite;
   /** Optional so designs saved before recovery existed still load */
   recovery?: RecoverySpec;
+  /** Rigid-body attitude + thrust-vector control; off = thrust points exactly where guidance asks */
+  control?: ControlSpec;
 }
 
 export const stageWetMass = (s: StageSpec) => s.dryMass + s.propMass;
