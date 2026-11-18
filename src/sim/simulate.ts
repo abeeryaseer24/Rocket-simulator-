@@ -186,6 +186,9 @@ export function simulate(vehicle: Vehicle, opts: SimOptions = {}): FlightResult 
   };
   let boosterProp = hasBoosters ? v.boosters.stage.propMass : 0;
   let boostersAttached = hasBoosters;
+  // A single sustainer core with strap-ons (R-7 style) flies on to orbit alone after the boosters drop,
+  // so it switches from the open-loop gravity turn to closed-loop guidance at booster separation.
+  const sustainerToOrbit = v.stages.length === 1 && hasBoosters;
   let fairingAttached = v.fairing.mass > 0;
   let k = 0; // active core stage
   let coreLit = true;
@@ -313,7 +316,8 @@ export function simulate(vehicle: Vehicle, opts: SimOptions = {}): FlightResult 
     let dir: Vec3;
     const coreThrust = coreBurning ? thrustAt(eng, atm.p, thr) : 0;
     const thrust = coreThrust + boostThrust;
-    if (k === 0) {
+    const closedLoop = k > 0 || (sustainerToOrbit && !boostersAttached);
+    if (!closedLoop) {
       const tk = g.verticalRiseTime;
       const kick = g.pitchKickAngle * DEG;
       if (t < tk) dir = up;
@@ -509,7 +513,7 @@ export function simulate(vehicle: Vehicle, opts: SimOptions = {}): FlightResult 
       log('ignition', `${v.stages[k].name} ignition`, `${v.stages[k].engine.count} × ${v.stages[k].engine.name}`);
     }
     // Cutoff on energy: semi-major axis has reached the target circular radius
-    if (!cutoff && k > 0 && coreLit) {
+    if (!cutoff && (k > 0 || (sustainerToOrbit && !boostersAttached)) && coreLit) {
       const el = elementsFromState(r, vel);
       const rTarget = norm(r) - altNow + g.targetAltitude;
       if (el.a >= rTarget) {
