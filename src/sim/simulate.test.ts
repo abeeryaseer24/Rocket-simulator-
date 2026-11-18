@@ -38,3 +38,24 @@ describe('ascent simulation', () => {
     expect(['suborbital', 'impact']).toContain(simulate(v).outcome);
   });
 });
+
+describe('engine-out', () => {
+  it('losing one of nine first-stage engines at T+60 still reaches orbit with less margin', () => {
+    const nominal = simulate(PRESETS[0]);
+    const out = simulate(PRESETS[0], { failures: [{ t: 60 }] });
+    expect(out.events.some((e) => e.kind === 'engine-out')).toBe(true);
+    expect(out.outcome).toBe('orbit');
+    expect(out.margin).toBeLessThan(nominal.margin);
+  });
+  it('is identical to nominal before the failure time', () => {
+    const nominal = simulate(PRESETS[0]);
+    const out = simulate(PRESETS[0], { failures: [{ t: 100 }] });
+    const a = nominal.samples.find((s) => s.t >= 99)!;
+    const b = out.samples.find((s) => s.t >= 99)!;
+    expect(b.alt).toBeCloseTo(a.alt, 6);
+  });
+  it('losing the only upper-stage engine early leaves the vehicle suborbital', () => {
+    const out = simulate(PRESETS[0], { failures: [{ t: 200 }] });
+    expect(['suborbital', 'impact']).toContain(out.outcome);
+  });
+});

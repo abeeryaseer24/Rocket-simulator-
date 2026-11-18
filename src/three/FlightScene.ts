@@ -558,6 +558,13 @@ export class FlightScene {
       this.marker.visible = true;
       this.marker.scale.setScalar(60);
     }
+    // Camera shake: ground-reflected acoustic load near the pad, then aerodynamic buffet around max-Q
+    if (this.mode !== 'orbital' && (s.burning || (t < 0 && t > -2.5))) {
+      const shake = Math.max(0, 1 - s.alt / 2500) * 0.9 + Math.min(1, s.q / 35000) * 0.55;
+      const a = 0.0035 * shake * (this.camera.fov / 45);
+      this.camera.rotateX((Math.random() - 0.5) * a);
+      this.camera.rotateY((Math.random() - 0.5) * a);
+    }
     this.camera.updateProjectionMatrix();
     this.stars.position.copy(this.camera.position);
     this.renderer.render(this.scene, this.camera);

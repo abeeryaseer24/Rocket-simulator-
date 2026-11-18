@@ -14,6 +14,8 @@ interface Ctx {
   loadPreset: (id: string) => void;
   result: FlightResult | null;
   fly: () => FlightResult;
+  /** Replace the recorded flight (e.g. after an injected engine failure) */
+  record: (r: FlightResult) => void;
   /** True when the vehicle has been edited since the last flight */
   stale: boolean;
 }
@@ -74,9 +76,14 @@ export function SimProvider({ children }: { children: ReactNode }) {
     return r;
   }, [vehicle]);
 
+  const record = useCallback((r: FlightResult) => {
+    setResult(r);
+    setStale(false);
+  }, []);
+
   const value = useMemo(
-    () => ({ vehicle, setVehicle, update, loadPreset, result, fly, stale }),
-    [vehicle, setVehicle, update, loadPreset, result, fly, stale],
+    () => ({ vehicle, setVehicle, update, loadPreset, result, fly, record, stale }),
+    [vehicle, setVehicle, update, loadPreset, result, fly, record, stale],
   );
   return <SimContext.Provider value={value}>{children}</SimContext.Provider>;
 }

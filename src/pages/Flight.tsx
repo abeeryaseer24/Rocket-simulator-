@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { RAD } from '../physics/constants';
+import { AltitudeTape, ArcGauge, BarMeter, Countdown } from '../components/flight/Instruments';
+import { EngineAudio } from '../lib/engineAudio';
 import { fmtClock, sampleAt } from '../sim/playback';
-import type { FlightEvent, FlightResult, Sample } from '../sim/simulate';
+import { simulate, type EngineFailure, type FlightEvent, type FlightResult, type Sample } from '../sim/simulate';
+import { liftoffThrust } from '../sim/vehicle';
 import { useSim } from '../sim/store';
 import { FlightScene, skyColor, type CameraMode } from '../three/FlightScene';
 import './flight.css';
@@ -20,7 +23,7 @@ const OUTCOME_TITLE: Record<FlightResult['outcome'], string> = {
 };
 
 export default function Flight() {
-  const { vehicle, fly, result: stored, stale } = useSim();
+  const { vehicle, fly, record, result: stored, stale } = useSim();
   const [params] = useSearchParams();
   const atParam = params.get('at');
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -32,6 +35,14 @@ export default function Flight() {
   const [hud, setHud] = useState<{ t: number; s: Sample | null }>({ t: -COUNT, s: null });
   const [more, setMore] = useState(false);
   const [toast, setToast] = useState<FlightEvent | null>(null);
+  const [sound, setSound] = useState(false);
+  const [failures, setFailures] = useState<EngineFailure[]>([]);
+  const audioRef = useRef<EngineAudio | null>(null);
+  const soundRef = useRef(false);
+  soundRef.current = sound;
+  const T0 = useMemo(() => liftoffThrust(vehicle), [vehicle]);
+  const t0Ref = useRef(T0);
+  t0Ref.current = T0;
 
   const tRef = useRef(-COUNT);
   const phaseRef = useRef<Phase>('ready');
@@ -48,6 +59,7 @@ export default function Flight() {
   useEffect(() => {
     const r = stale || !stored ? fly() : stored;
     setResult(r);
+    setFailures([]);
     lastEventRef.current = -1;
     // ?at=<seconds> opens the flight paused at that mission time (shareable moments)
     const at = atParam !== null ? Number(atParam) : NaN;
@@ -101,7 +113,9 @@ export default function Flight() {
         tRef.current += dtWall;
         if (tRef.current >= 0) setPhase('flying');
       } else if (ph === 'flying' && r && r.samples.length) {
-        tRef.current += dtWall * warpRef.current;
+        // Cinematic liftoff: real time off the pad, then ease into the chosen warp
+        const ramp = Math.min(warpRef.current, 1 + Math.max(0, tRef.current - 8) * 0.6);
+        tRef.current += dtWall * ramp;
         const end = r.samples[r.samples.length - 1].t;
         if (tRef.current >= end) {
           tRef.current = end;
@@ -123,6 +137,12 @@ export default function Flight() {
           if (idx > lastEventRef.current && t > 0) setToast(r.events[idx]);
           lastEventRef.current = idx;
         }
+        const a = audioRef.current;
+        if (a && soundRef.current) {
+          const running = ph === 'flying' || ph === 'countdown';
+          const share = t < 0 ? (t > -2.5 ? (t + 2.5) / 2.5 * 0.5 : 0) : s.thrust / t0Ref.current;
+          a.set(running ? share : 0, s.rho);
+        }
         if (now - hudClock > 80) {
           hudClock = now;
           setHud({ t, s });
@@ -132,6 +152,23 @@ export default function Flight() {
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
   }, []);
+
+  useEffect(() => () => audioRef.current?.dispose(), []);
+  const toggleSound = () => {
+    if (!audioRef.current) audioRef.current = new EngineAudio();
+    if (sound) audioRef.current.stop();
+    else audioRef.current.start();
+    setSound(!sound);
+  };
+
+  const failEngine = () => {
+    const f = [...failures, { t: tRef.current }];
+    const r2 = simulate(vehicle, { failures: f });
+    setFailures(f);
+    setResult(r2);
+    record(r2);
+    lastEventRef.current = r2.events.filter((e) => e.t < tRef.current).length - 1;
+  };
 
   useEffect(() => {
     if (!toast) return;
@@ -147,10 +184,15 @@ export default function Flight() {
     else if (phase === 'done') {
       tRef.current = -COUNT;
       lastEventRef.current = -1;
-      sceneRef.current?.setResult(resultRef.current);
+      if (failures.length) {
+        const r = simulate(vehicle);
+        setFailures([]);
+        setResult(r);
+        record(r);
+      } else sceneRef.current?.setResult(resultRef.current);
       setPhase('ready');
     }
-  }, [phase]);
+  }, [phase, failures, vehicle, record]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -252,13 +294,54 @@ export default function Flight() {
         ))}
       </div>
 
-      {s && (
+      <div className="flight-vignette" aria-hidden />
+
+      {(phase === 'countdown' || (hud.t >= 0 && hud.t < 0.8 && phase === 'flying')) && <Countdown t={hud.t} />}
+
+      {phase === 'ready' && result && (
+        <aside className="prelaunch" aria-label="Launch readiness">
+          <h2>{vehicle.name}</h2>
+          <p className="num">
+            {vehicle.site.name} to {(vehicle.guidance.targetAltitude / 1000).toFixed(0)} km at {vehicle.guidance.targetInclination}°
+          </p>
+          <ol>
+            {['Propellant load complete', 'Range is green', 'Weather is go', 'Flight computer in startup', 'Flight termination system armed'].map((x, i) => (
+              <li key={x} style={{ animationDelay: `${i * 180}ms` }}>
+                <span>{x}</span>
+                <b>Go</b>
+              </li>
+            ))}
+          </ol>
+          <p className="prelaunch-hint">Press Start countdown or the space bar. Drag the view to look around.</p>
+        </aside>
+      )}
+
+      {s && phase !== 'ready' && (
         <section className="flight-hud" aria-label="Flight data">
-          <Readout label="Altitude" value={(s.alt / 1000).toFixed(s.alt < 10000 ? 2 : 1)} unit="km" />
-          <Readout label="Inertial speed" value={s.vInertial.toFixed(0)} unit="m/s" />
-          <Readout label="Mach" value={s.alt < 90000 ? s.mach.toFixed(2) : '—'} unit="" />
-          <Readout label="Dynamic pressure" value={(s.q / 1000).toFixed(1)} unit="kPa" />
-          <Readout label="Acceleration" value={Math.abs(s.axialG) < 0.005 ? "0.00" : s.axialG.toFixed(2)} unit="g" />
+          <div className="gauges">
+            <ArcGauge
+              label="Inertial speed"
+              value={s.vInertial}
+              max={8000}
+              display={(s.vInertial / 1000).toFixed(2)}
+              unit="km/s"
+              ticks={8}
+            />
+            <ArcGauge
+              label="Altitude"
+              value={s.alt}
+              max={vehicle.guidance.targetAltitude * 1.15}
+              display={s.alt < 10000 ? (s.alt / 1000).toFixed(2) : (s.alt / 1000).toFixed(0)}
+              unit="km"
+            />
+          </div>
+          <div className="meters">
+            <BarMeter label="Dynamic pressure" value={s.q} max={45000} display={`${(s.q / 1000).toFixed(1)} kPa`} warnAt={vehicle.guidance.qBucketStart} />
+            <BarMeter label="Acceleration" value={s.axialG} max={6} display={`${Math.max(0, s.axialG).toFixed(2)} g`} warnAt={vehicle.guidance.maxAxialG * 0.98} />
+            <BarMeter label="Throttle" value={s.throttle} max={1} display={`${(s.throttle * 100).toFixed(0)} %`} />
+            <BarMeter label={`Propellant, ${vehicle.stages[s.stage]?.name.toLowerCase()}`} value={s.propFraction} max={1} display={`${(s.propFraction * 100).toFixed(0)} %`} />
+            <BarMeter label="Mach" value={s.alt < 90000 ? s.mach : 0} max={25} display={s.alt < 90000 ? s.mach.toFixed(2) : 'n/a'} />
+          </div>
           <button className="flight-more" onClick={() => setMore((m) => !m)} aria-expanded={more}>
             {more ? 'Fewer readings' : 'More readings'}
           </button>
@@ -269,7 +352,6 @@ export default function Flight() {
               <Readout small label="Vertical speed" value={s.vVertical.toFixed(0)} unit="m/s" />
               <Readout small label="Flight-path angle" value={s.gamma.toFixed(1)} unit="°" />
               <Readout small label="Pitch" value={s.pitch.toFixed(1)} unit="°" />
-              <Readout small label="Throttle" value={(s.throttle * 100).toFixed(0)} unit="%" />
               <Readout small label="Thrust" value={(s.thrust / 1e6).toFixed(2)} unit="MN" />
               <Readout small label="Mass" value={(s.mass / 1000).toFixed(1)} unit="t" />
               <Readout small label="Apoapsis" value={s.apo > 0 ? (s.apo / 1000).toFixed(0) : '—'} unit="km" />
@@ -281,17 +363,7 @@ export default function Flight() {
         </section>
       )}
 
-      {s && (
-        <div className="flight-prop" aria-label="Active stage propellant">
-          <div className="flight-prop-bar">
-            <div style={{ height: `${Math.max(0, Math.min(1, s.propFraction)) * 100}%` }} />
-          </div>
-          <div className="flight-prop-label">
-            {vehicle.stages[s.stage]?.name}
-            <span className="num">{(s.propFraction * 100).toFixed(0)} %</span>
-          </div>
-        </div>
-      )}
+      {s && phase !== 'ready' && cam !== 'orbital' && <AltitudeTape altKm={s.alt / 1000} events={passed} />}
 
       {showVerdict && result && (
         <aside className={'flight-verdict ' + result.outcome}>
@@ -348,6 +420,14 @@ export default function Flight() {
           </select>
         </label>
         <Timeline result={result} t={hud.t} end={endT} onSeek={seek} enabled={phase !== 'ready' && phase !== 'countdown'} />
+        <button className="btn small ghost flight-sound" onClick={toggleSound} aria-pressed={sound}>
+          {sound ? 'Sound on' : 'Sound off'}
+        </button>
+        {s && s.burning && (phase === 'flying' || phase === 'paused') && hud.t < (result?.cutoffState?.t ?? Infinity) && (
+          <button className="btn small flight-fail" onClick={failEngine} title="Shut down one engine on the active stage and re-fly from here">
+            Fail an engine
+          </button>
+        )}
       </footer>
     </div>
   );

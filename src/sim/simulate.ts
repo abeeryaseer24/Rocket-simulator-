@@ -73,7 +73,8 @@ export type EventKind =
   | 'karman'
   | 'seco'
   | 'depletion'
-  | 'impact';
+  | 'impact'
+  | 'engine-out';
 
 export interface FlightEvent {
   t: number;
@@ -105,10 +106,18 @@ export interface FlightResult {
   margin: number;
 }
 
+/** An engine shutdown injected at mission time t on whichever core stage is active then. */
+export interface EngineFailure {
+  t: number;
+  /** Engines lost (default 1) */
+  count?: number;
+}
+
 export interface SimOptions {
   dt?: number;
   coastAfterCutoff?: number;
   maxTime?: number;
+  failures?: EngineFailure[];
 }
 
 /**
@@ -131,6 +140,10 @@ export function simulate(vehicle: Vehicle, opts: SimOptions = {}): FlightResult 
   const dt = opts.dt ?? 0.02;
   const coastAfter = opts.coastAfterCutoff ?? 300;
   const maxTime = opts.maxTime ?? 3600;
+  const failures = [...(opts.failures ?? [])].sort((a, b) => a.t - b.t);
+  /** engines lost per core stage index */
+  const lost: number[] = vehicle.stages.map(() => 0);
+  let nextFailure = 0;
   const v = vehicle;
   const g = v.guidance;
   const nStages = v.stages.length;
@@ -224,8 +237,23 @@ export function simulate(vehicle: Vehicle, opts: SimOptions = {}): FlightResult 
     const { up, east, north } = localFrame(r);
     const m = totalMass();
     const stage = v.stages[k];
-    const eng = stage.engine;
-    const coreBurning = coreLit && !cutoff && corePropLeft[k] > 0 && pendingIgnAt < 0 && pendingSepAt < 0;
+    // Engine-out: the stage keeps flying on the engines it has left (mass flow and thrust scale with count)
+    while (nextFailure < failures.length && failures[nextFailure].t <= t) {
+      const f = failures[nextFailure++];
+      const n = Math.min(f.count ?? 1, stage.engine.count - lost[k]);
+      if (n > 0) {
+        lost[k] += n;
+        log(
+          'engine-out',
+          'Engine out',
+          lost[k] >= stage.engine.count
+            ? `${stage.name}: all engines down`
+            : `${stage.name} continues on ${stage.engine.count - lost[k]} of ${stage.engine.count} engines`,
+        );
+      }
+    }
+    const eng = lost[k] > 0 ? { ...stage.engine, count: Math.max(0, stage.engine.count - lost[k]) } : stage.engine;
+    const coreBurning = coreLit && !cutoff && eng.count > 0 && corePropLeft[k] > 0 && pendingIgnAt < 0 && pendingSepAt < 0;
     const boostBurning = boostersAttached && boosterProp > 0;
 
     // ---------- throttle law ----------

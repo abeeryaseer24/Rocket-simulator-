@@ -368,3 +368,331 @@
     transform: none;
   }
 }
+
+/* ---------- cinematic layer ---------- */
+.flight-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse 75% 70% at 50% 45%, transparent 55%, rgba(0, 0, 0, 0.38) 100%);
+}
+
+/* ---------- instruments ---------- */
+.gauges {
+  display: flex;
+  gap: 4px;
+}
+.gauge {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.gauge svg {
+  overflow: visible;
+}
+.gauge figcaption {
+  font-size: var(--t-xs);
+  color: var(--hud-dim);
+  margin-top: -14px;
+  font-weight: 560;
+}
+.gauge-track {
+  fill: none;
+  stroke: var(--hud-dim);
+  stroke-opacity: 0.35;
+  stroke-width: 6;
+  stroke-linecap: round;
+}
+.gauge-red {
+  fill: none;
+  stroke: var(--abort);
+  stroke-width: 6;
+  stroke-opacity: 0.6;
+}
+.gauge-fill {
+  fill: none;
+  stroke: var(--kapton);
+  stroke-width: 6;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 6px rgba(224, 168, 58, 0.55));
+}
+.gauge-tick {
+  stroke: var(--hud-dim);
+  stroke-width: 1.2;
+}
+.gauge-dot {
+  fill: #fff4dc;
+  filter: drop-shadow(0 0 5px rgba(255, 196, 90, 0.9));
+}
+.gauge-value {
+  fill: var(--hud-fg);
+  font-variation-settings: 'wdth' 118;
+  font-weight: 720;
+  font-size: 23px;
+  font-feature-settings: 'tnum' 1;
+}
+.gauge-unit {
+  fill: var(--hud-dim);
+  font-size: 11px;
+}
+.meters {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 260px;
+  padding: 12px 14px;
+  background: var(--hud-panel);
+  backdrop-filter: blur(8px);
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.meter-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--t-xs);
+  color: var(--hud-dim);
+  font-weight: 540;
+}
+.meter-head .num {
+  color: var(--hud-fg);
+  font-weight: 650;
+}
+.meter-track {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(127, 140, 150, 0.3);
+  margin-top: 3px;
+  overflow: hidden;
+}
+.meter-fill {
+  height: 100%;
+  background: var(--kapton);
+  border-radius: 2px;
+  transition: width 120ms linear;
+}
+.meter.warn .meter-fill {
+  background: #e0533f;
+}
+.meter.warn .meter-head .num {
+  color: #ff8a73;
+}
+
+/* ---------- altitude tape ---------- */
+.tape {
+  position: absolute;
+  right: clamp(16px, 3vw, 36px);
+  top: 18%;
+  bottom: 22%;
+  width: 150px;
+  border-right: 1px solid var(--hud-dim);
+  pointer-events: none;
+  color: var(--hud-fg);
+  mask-image: linear-gradient(transparent, #000 14%, #000 86%, transparent);
+}
+.tape-mark {
+  position: absolute;
+  right: 0;
+  transform: translateY(-50%);
+  padding-right: 14px;
+  text-align: right;
+  font-size: var(--t-xs);
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+  transition: top 120ms linear;
+}
+.tape-mark::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 50%;
+  width: 8px;
+  height: 1px;
+  background: currentColor;
+}
+.tape-mark span {
+  color: var(--hud-dim);
+}
+.tape-mark em {
+  font-style: normal;
+  font-weight: 560;
+}
+.tape-mark.ev em {
+  color: var(--kapton);
+}
+.tape-caret {
+  position: absolute;
+  right: -7px;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+}
+.tape-caret::after {
+  content: '';
+  width: 0;
+  height: 0;
+  border-top: 7px solid transparent;
+  border-bottom: 7px solid transparent;
+  border-right: 10px solid var(--kapton);
+}
+.tape-caret span {
+  margin-right: 8px;
+  padding: 3px 8px;
+  border-radius: 3px;
+  background: var(--kapton);
+  color: #fff;
+  font-weight: 700;
+  font-size: var(--t-sm);
+  white-space: nowrap;
+}
+
+/* ---------- countdown ---------- */
+.countdown {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  transform: translate(-50%, -50%);
+  width: 220px;
+  height: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  color: #fff;
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.45);
+  animation: cd-pop 1s ease-out;
+}
+.countdown-ring {
+  position: absolute;
+  inset: 0;
+  transform: rotate(-90deg);
+}
+.cd-track {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.18);
+  stroke-width: 3;
+}
+.cd-fill {
+  fill: none;
+  stroke: var(--kapton);
+  stroke-width: 3;
+  stroke-dasharray: 565.5;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 90ms linear;
+}
+.countdown-n {
+  font-variation-settings: 'wdth' 125;
+  font-weight: 820;
+  font-size: 5.4rem;
+  line-height: 1;
+}
+.countdown.go .countdown-n {
+  font-size: 2.6rem;
+  color: #ffe2a3;
+}
+.countdown-sub {
+  margin-top: 8px;
+  font-size: var(--t-sm);
+  font-weight: 560;
+  opacity: 0.85;
+}
+@keyframes cd-pop {
+  from {
+    transform: translate(-50%, -50%) scale(1.25);
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+}
+
+/* ---------- pre-launch readiness ---------- */
+.prelaunch {
+  position: absolute;
+  left: clamp(16px, 3vw, 36px);
+  bottom: 96px;
+  width: min(360px, calc(100% - 32px));
+  padding: 20px 22px;
+  background: rgba(8, 14, 26, 0.72);
+  backdrop-filter: blur(10px);
+  color: #eef2f4;
+  border-radius: 4px;
+  border-left: 3px solid var(--kapton);
+}
+.prelaunch h2 {
+  font-size: var(--t-xl);
+}
+.prelaunch > p {
+  margin-top: 4px;
+  color: rgba(230, 235, 236, 0.7);
+  font-size: var(--t-sm);
+}
+.prelaunch ol {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.prelaunch li {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--t-sm);
+  opacity: 0;
+  animation: go-in 360ms ease-out forwards;
+}
+.prelaunch li b {
+  color: #7fd6a4;
+  font-weight: 700;
+}
+@keyframes go-in {
+  from {
+    opacity: 0;
+    transform: translateX(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.prelaunch-hint {
+  font-size: var(--t-xs) !important;
+}
+
+.flight-fail {
+  background: var(--abort);
+  border-color: var(--abort);
+}
+.flight-fail:hover {
+  background: #8f1e18;
+}
+.flight-sound {
+  color: var(--hud-fg);
+  border-color: var(--hud-dim);
+}
+
+@media (max-width: 760px) {
+  .tape {
+    display: none;
+  }
+  .gauges svg {
+    width: 104px;
+    height: 95px;
+  }
+  .meters {
+    width: 200px;
+  }
+  .countdown {
+    transform: translate(-50%, -50%) scale(0.75);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .countdown,
+  .prelaunch li {
+    animation: none;
+    opacity: 1;
+  }
+}
