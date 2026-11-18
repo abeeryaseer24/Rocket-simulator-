@@ -1,6 +1,6 @@
 import { DEFAULT_CD } from '../physics/aero';
 import type { EngineSpec } from '../physics/propulsion';
-import type { LaunchSite, StageSpec, Vehicle } from './vehicle';
+import { DEFAULT_RECOVERY, type LaunchSite, type StageSpec, type Vehicle } from './vehicle';
 
 /**
  * Reference vehicles. Figures are rounded from publicly published data
@@ -71,11 +71,12 @@ export const PRESETS: Vehicle[] = [
   {
     id: 'medium-kerolox',
     name: 'Medium-lift kerolox',
-    summary: 'Two-stage RP-1/LOX vehicle in the class of the Falcon 9 Block 5, flown expendable to the ISS orbit.',
+    summary: 'Two-stage RP-1/LOX vehicle in the class of the Falcon 9 Block 5. The first stage lands on a droneship downrange.',
     stages: [kerolox1, kerolox2],
     boosters: { count: 0, stage: kerolox1, coreThrottleWhileAttached: 1 },
     fairing: { mass: 1900, diameter: 5.2, length: 13.1, jettisonAltitude: 110e3 },
-    payloadMass: 15000,
+    payloadMass: 13000,
+    recovery: { ...DEFAULT_RECOVERY, enabled: true, mode: 'droneship', reserveFraction: 0.08 },
     noseRadius: 1.2,
     cd: DEFAULT_CD,
     guidance: {

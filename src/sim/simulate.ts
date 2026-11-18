@@ -13,7 +13,8 @@ import {
 import { elementsFromState, flightPathAngle, type OrbitalElements } from '../physics/orbit';
 import { massFlow, thrustAt } from '../physics/propulsion';
 import { add, addScaled, angleBetween, cross, dot, norm, scale, sub, unit, type Vec3 } from '../physics/vec';
-import { liftoffMass, liftoffThrust, type Vehicle } from './vehicle';
+import { recoverWithShip, type RecoveryResult, type RecoveryStart } from './recovery';
+import { DEFAULT_RECOVERY, liftoffMass, liftoffThrust, type Vehicle } from './vehicle';
 
 /** One telemetry frame. Units are SI unless the name says otherwise. */
 export interface Sample {
@@ -104,6 +105,8 @@ export interface FlightResult {
   computeMs: number;
   /** Propellant left in the active stage at cutoff [kg] — the performance margin */
   margin: number;
+  /** First-stage return flight, when recovery is enabled */
+  recovery: RecoveryResult | null;
 }
 
 /** An engine shutdown injected at mission time t on whichever core stage is active then. */
@@ -157,7 +160,12 @@ export function simulate(vehicle: Vehicle, opts: SimOptions = {}): FlightResult 
   let t = 0;
 
   const az = launchAzimuth(v.site.lat, g.targetInclination, g.targetAltitude);
-  const corePropLeft = v.stages.map((s) => s.propMass);
+  // Recovery: hold back part of the first stage's load. It still has to be lifted, but can't be burned on ascent.
+  const rec = v.recovery?.enabled && nStages > 1 ? { ...DEFAULT_RECOVERY, ...v.recovery } : null;
+  const reserve0 = rec ? v.stages[0].propMass * rec.reserveFraction : 0;
+  const corePropLeft = v.stages.map((s, i) => (i === 0 ? s.propMass - reserve0 : s.propMass));
+  const ascentProp = (j: number) => (j === 0 ? v.stages[0].propMass - reserve0 : v.stages[j].propMass);
+  let recoveryStart: RecoveryStart | null = null;
   let boosterProp = hasBoosters ? v.boosters.stage.propMass : 0;
   let boostersAttached = hasBoosters;
   let fairingAttached = v.fairing.mass > 0;
@@ -186,7 +194,7 @@ export function simulate(vehicle: Vehicle, opts: SimOptions = {}): FlightResult 
 
   const totalMass = () => {
     let m = v.payloadMass + (fairingAttached ? v.fairing.mass : 0);
-    for (let j = k; j < nStages; j++) m += v.stages[j].dryMass + corePropLeft[j];
+    for (let j = k; j < nStages; j++) m += v.stages[j].dryMass + corePropLeft[j] + (j === 0 ? reserve0 : 0);
     if (boostersAttached) m += v.boosters.count * (v.boosters.stage.dryMass + boosterProp);
     return m;
   };
@@ -221,6 +229,7 @@ export function simulate(vehicle: Vehicle, opts: SimOptions = {}): FlightResult 
       totals: { dvIdeal: 0, lossGravity: 0, lossDrag: 0, lossSteering: 0, vEarthAssist },
       computeMs: performance.now() - t0,
       margin: 0,
+      recovery: null,
     };
   }
   events.push({ t: 0, kind: 'liftoff', label: 'Liftoff', detail: `T/W ${tw0.toFixed(2)}, mass ${(m0 / 1000).toFixed(0)} t`, alt: v.site.elevation, v: vEarthAssist });
@@ -360,7 +369,7 @@ export function simulate(vehicle: Vehicle, opts: SimOptions = {}): FlightResult 
         stage: k,
         boosters: boostersAttached,
         fairing: fairingAttached,
-        propFraction: corePropLeft[k] / v.stages[k].propMass,
+        propFraction: corePropLeft[k] / ascentProp(k),
         dvIdeal: lossT.dvIdeal,
         lossGravity: lossT.grav,
         lossDrag: lossT.drag,
@@ -458,7 +467,8 @@ export function simulate(vehicle: Vehicle, opts: SimOptions = {}): FlightResult 
     if (pendingSepAt >= 0 && t >= pendingSepAt - 1e-9) {
       pendingSepAt = -1;
       k += 1;
-      log('stage-sep', 'Stage separation', `${v.stages[k - 1].name} falls away`);
+      if (k === 1 && rec) recoveryStart = { r: [...r], v: [...vel], t, prop: reserve0 };
+      log('stage-sep', 'Stage separation', `${v.stages[k - 1].name} ${rec && k === 1 ? 'separates and turns for home' : 'falls away'}`);
       pendingIgnAt = t + g.ignitionDelay;
     }
     if (pendingIgnAt >= 0 && t >= pendingIgnAt - 1e-9) {
@@ -521,6 +531,7 @@ export function simulate(vehicle: Vehicle, opts: SimOptions = {}): FlightResult 
     totals: { dvIdeal: lossT.dvIdeal, lossGravity: lossT.grav, lossDrag: lossT.drag, lossSteering: lossT.steer, vEarthAssist },
     computeMs: performance.now() - t0,
     margin: cutoffState ? corePropLeft[k] : 0,
+    recovery: recoveryStart ? recoverWithShip(v, recoveryStart) : null,
   };
 }
 

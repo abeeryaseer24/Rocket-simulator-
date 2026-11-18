@@ -62,6 +62,36 @@ export interface LaunchSite {
   elevation: number;
 }
 
+/** First-stage recovery: the spent stage flies itself back down with propellant held in reserve. */
+export interface RecoverySpec {
+  enabled: boolean;
+  /** Land on an ocean barge near the natural impact point, or fly back to the launch site */
+  mode: 'droneship' | 'rtls';
+  /** Fraction of first-stage propellant held back for the return (not used for ascent) */
+  reserveFraction: number;
+  boostbackEngines: number;
+  entryEngines: number;
+  landingEngines: number;
+  /** Entry burn starts below this altitude [m] */
+  entryStartAlt: number;
+  /** Velocity removed by the entry burn [m/s] */
+  entryDv: number;
+  /** Axial drag coefficient falling engines-first */
+  cdDescent: number;
+}
+
+export const DEFAULT_RECOVERY: RecoverySpec = {
+  enabled: false,
+  mode: 'droneship',
+  reserveFraction: 0.08,
+  boostbackEngines: 3,
+  entryEngines: 3,
+  landingEngines: 1,
+  entryStartAlt: 60e3,
+  entryDv: 950,
+  cdDescent: 1.1,
+};
+
 export interface Vehicle {
   id: string;
   name: string;
@@ -75,6 +105,8 @@ export interface Vehicle {
   cd: CdTable;
   guidance: GuidanceSpec;
   site: LaunchSite;
+  /** Optional so designs saved before recovery existed still load */
+  recovery?: RecoverySpec;
 }
 
 export const stageWetMass = (s: StageSpec) => s.dryMass + s.propMass;
