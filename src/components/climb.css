@@ -262,12 +262,12 @@
   position: absolute;
   left: clamp(16px, 4vw, 56px);
   top: clamp(24px, 10vh, 110px);
-  width: min(46vw, 640px);
+  max-width: calc(100% - 300px);
   z-index: 6;
   will-change: transform, opacity, filter;
 }
 .climb-title h1 {
-  font-size: clamp(3.4rem, 10vw, 9.5rem);
+  font-size: clamp(3rem, 9vw, 9.5rem);
   font-variation-settings: 'wdth' 125;
   font-weight: 880;
   letter-spacing: 0.01em;
@@ -275,12 +275,14 @@
   color: #f4f7fb;
   overflow: hidden;
   padding-bottom: 0.06em;
+  white-space: nowrap;
+}
+/* Gradient per letter: each letter animates on its own layer, so the clip must live on it */
+.climb-title .ch {
+  display: inline-block;
   background: linear-gradient(180deg, #ffffff 30%, #9fb6d8 100%);
   -webkit-background-clip: text;
   background-clip: text;
-}
-.climb-title .ch {
-  display: inline-block;
   color: transparent;
 }
 .climb-title p {
@@ -372,6 +374,56 @@
   .climb-flame,
   .climb-cue span,
   .climb-pad-lights i {
+    animation: none;
+  }
+}
+
+/* Intro, pure CSS so it always lands on the visible end state */
+.climb-title .ch {
+  animation: ch-in 1.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: calc(var(--i) * 70ms + 150ms);
+}
+.climb-title p {
+  animation: fade-up 1s cubic-bezier(0.16, 1, 0.3, 1) 0.7s both;
+}
+.climb-cue {
+  animation: fade-up 0.8s ease-out 1.4s both;
+}
+.climb-rocket-body {
+  animation: rise 1.6s cubic-bezier(0.16, 1, 0.3, 1) 0.4s both;
+}
+.climb-pad-lights {
+  animation: fade-in 0.8s ease-out 1s both;
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes ch-in {
+  from {
+    transform: translateY(110%) rotate(6deg);
+    opacity: 0;
+  }
+}
+@keyframes fade-up {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+}
+@keyframes rise {
+  from {
+    transform: translateY(70px);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .climb-title .ch,
+  .climb-title p,
+  .climb-cue,
+  .climb-rocket-body,
+  .climb-pad-lights {
     animation: none;
   }
 }

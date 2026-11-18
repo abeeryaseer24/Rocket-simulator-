@@ -1,6 +1,6 @@
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { atmosphere } from '../physics/atmosphere';
 import { MU_EARTH, R_EQ } from '../physics/constants';
 import type { Vehicle } from '../sim/vehicle';
@@ -71,21 +71,6 @@ export default function ClimbHero({ vehicle, onDone }: { vehicle: Vehicle; onDon
       st.kill();
       window.removeEventListener('resize', onResize);
     };
-  }, []);
-
-  // Intro: letters rise in one by one, then the subtitle, then the pad lights
-  useEffect(() => {
-    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (reduce) return;
-    const ctx = gsap.context(() => {
-      const tl = gsap.timeline({ defaults: { ease: 'expo.out' } });
-      tl.from('.climb-title .ch', { yPercent: 115, rotate: 6, opacity: 0, duration: 1.3, stagger: 0.06 })
-        .from('.climb-title p', { y: 24, opacity: 0, duration: 1 }, '-=0.8')
-        .from('.climb-rocket', { y: 60, opacity: 0, duration: 1.4 }, '-=1.1')
-        .from('.climb-pad-lights i', { scale: 0, opacity: 0, duration: 0.6, stagger: 0.05 }, '-=0.9')
-        .from('.climb-cue', { opacity: 0, duration: 0.8 }, '-=0.3');
-    }, wrap);
-    return () => ctx.revert();
   }, []);
 
   const h = TOP_KM * Math.pow(p, 2.3);
@@ -246,7 +231,7 @@ export default function ClimbHero({ vehicle, onDone }: { vehicle: Vehicle; onDon
         >
           <h1 ref={titleRef} aria-label={title}>
             {title.split('').map((c, i) => (
-              <span key={i} className="ch" aria-hidden>
+              <span key={i} className="ch" aria-hidden style={{ ['--i' as string]: i }}>
                 {c}
               </span>
             ))}
