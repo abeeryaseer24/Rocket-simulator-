@@ -72,7 +72,7 @@ export default function Packets() {
             bitPos += f.bits;
             return (
               <div key={f.name} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <div style={{ display: 'flex', gap: 2 }}>
+                <div style={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
                   {headerBits.slice(start, start + f.bits).map((b, i) => (
                     <button
                       key={i}
