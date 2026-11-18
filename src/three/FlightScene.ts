@@ -6,6 +6,10 @@ import type { PropellantKind } from '../physics/propulsion';
 import { rotZ, unit, type Vec3 } from '../physics/vec';
 import type { FlightResult, Sample } from '../sim/simulate';
 import type { StageSpec, Vehicle } from '../sim/vehicle';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { ATMO_FRAG, ATMO_VERT, EARTH_FRAG, EARTH_VERT, PLUME_FRAG, PLUME_VERT } from './shaders';
 
 export type CameraMode = 'chase' | 'tracking' | 'orbital' | 'booster';
@@ -28,12 +32,13 @@ const PLUME_COLORS: Record<PropellantKind, [string, string, number]> = {
  */
 export function skyColor(rho: number): THREE.Color {
   const b = Math.max(0, Math.min(1, 1 + Math.log10(Math.max(rho, 1e-12) / 1.225) / 5));
+  // Night launch: deep navy at the pad, pure black once the air thins
   const stops: Array<[number, string]> = [
     [0, '#000000'],
-    [0.18, '#050d24'],
-    [0.5, '#1d4a8f'],
-    [0.8, '#5d93d1'],
-    [1, '#9cc4ea'],
+    [0.18, '#010309'],
+    [0.5, '#040a1c'],
+    [0.8, '#08142e'],
+    [1, '#0e1f44'],
   ];
   for (let i = 1; i < stops.length; i++) {
     if (b <= stops[i][0]) {
@@ -78,6 +83,16 @@ export class FlightScene {
   private sunDir: THREE.Vector3;
   private debris: Debris[] = [];
   private barge: THREE.Group | null = null;
+  private composer: EffectComposer;
+  private bloom: UnrealBloomPass;
+  private engineLight = new THREE.PointLight(0xffa046, 0, 1.6, 0);
+  private moon: THREE.Mesh;
+  private moonDir: THREE.Vector3;
+  private moonLight: THREE.DirectionalLight;
+  private pad!: THREE.Group;
+  private floods: THREE.SpotLight[] = [];
+  private beacons: THREE.Mesh[] = [];
+  private smoke: Array<{ sp: THREE.Sprite; dir: THREE.Vector3; speed: number; delay: number; rise: number; size: number }> = [];
   /** When set, the scene renders only the first stage at this (booster) state */
   private soloStage0 = false;
   private stageOffsets: number[] = [];
@@ -96,10 +111,25 @@ export class FlightScene {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.camera = new THREE.PerspectiveCamera(45, 1, 0.0004, 4e5);
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.05;
+    this.composer = new EffectComposer(this.renderer);
+    this.composer.addPass(new RenderPass(this.scene, this.camera));
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(512, 512), 0.85, 0.55, 0.72);
+    this.composer.addPass(this.bloom);
+    this.composer.addPass(new OutputPass());
 
     this.site = geodeticToECEF(vehicle.site.lat * DEG, vehicle.site.lon * DEG, vehicle.site.elevation);
     const siteDir = unit(this.site);
-    this.sunDir = toV(unit([siteDir[0] * 0.6 + siteDir[1] * 0.75, siteDir[1] * 0.6 - siteDir[0] * 0.75, siteDir[2] * 0.6 + 0.25]));
+    const eastAtSite = unit([-siteDir[1], siteDir[0], 0]);
+    // Sun below the pad's horizon (night launch); high up the vehicle climbs into sunlight
+    this.sunDir = toV(unit([-siteDir[0] * 0.55 + eastAtSite[0] * 0.83, -siteDir[1] * 0.55 + eastAtSite[1] * 0.83, -siteDir[2] * 0.55 + 0.05]));
+    const northAtSite = unit([-siteDir[2] * siteDir[0], -siteDir[2] * siteDir[1], siteDir[0] * siteDir[0] + siteDir[1] * siteDir[1]]);
+    this.moonDir = toV(unit([
+      siteDir[0] * 0.42 - eastAtSite[0] * 0.62 - northAtSite[0] * 0.66,
+      siteDir[1] * 0.42 - eastAtSite[1] * 0.62 - northAtSite[1] * 0.66,
+      siteDir[2] * 0.42 - eastAtSite[2] * 0.62 - northAtSite[2] * 0.66,
+    ]));
 
     // ---- Earth ----
     const geo = new THREE.SphereGeometry(1, 512, 256);
@@ -113,7 +143,8 @@ export class FlightScene {
     });
     this.earth.add(new THREE.Mesh(geo, this.earthMat));
     this.earth.add(new THREE.Mesh(this.buildCap(vehicle), this.earthMat));
-    this.earth.add(this.buildPad(vehicle));
+    this.pad = this.buildPad(vehicle);
+    this.earth.add(this.pad);
     const atmoGeo = new THREE.SphereGeometry(RE_KM + 90, 128, 64);
     atmoGeo.rotateX(Math.PI / 2);
     this.atmoMat = new THREE.ShaderMaterial({
@@ -129,9 +160,34 @@ export class FlightScene {
     this.scene.add(this.earth);
 
     // ---- lights ----
-    this.sun = new THREE.DirectionalLight(0xffffff, 2.6);
+    this.sun = new THREE.DirectionalLight(0xfff1dc, 2.6);
     this.scene.add(this.sun);
-    this.scene.add(new THREE.HemisphereLight(0xbcd3ee, 0x3a3328, 0.55));
+    this.scene.add(new THREE.HemisphereLight(0x3a4c78, 0x0a0a12, 0.35));
+    this.moonLight = new THREE.DirectionalLight(0x9fb6ff, 0.55);
+    this.scene.add(this.moonLight);
+    const moonTex = (() => {
+      const c = document.createElement('canvas');
+      c.width = c.height = 128;
+      const x = c.getContext('2d')!;
+      const gr = x.createRadialGradient(54, 54, 8, 64, 64, 64);
+      gr.addColorStop(0, '#fbf8ef');
+      gr.addColorStop(0.7, '#d9d6cc');
+      gr.addColorStop(1, '#a9a69c');
+      x.fillStyle = gr;
+      x.beginPath();
+      x.arc(64, 64, 63, 0, Math.PI * 2);
+      x.fill();
+      x.fillStyle = 'rgba(120,118,110,0.35)';
+      for (const [cx, cy, r] of [[44, 50, 14], [78, 40, 9], [70, 80, 16], [40, 86, 8], [92, 70, 7]]) {
+        x.beginPath();
+        x.arc(cx, cy, r, 0, Math.PI * 2);
+        x.fill();
+      }
+      return new THREE.CanvasTexture(c);
+    })();
+    this.moon = new THREE.Mesh(new THREE.CircleGeometry(3400, 48), new THREE.MeshBasicMaterial({ map: moonTex, transparent: true, depthWrite: false, fog: false }));
+    this.moon.renderOrder = -1;
+    this.scene.add(this.moon);
 
     // ---- stars (re-centred on the camera every frame, i.e. at infinity) ----
     const sp = new Float32Array(4500 * 3);
@@ -198,8 +254,8 @@ export class FlightScene {
   private buildPad(v: Vehicle): THREE.Group {
     const g = new THREE.Group();
     const H = v.stages.reduce((a, s) => a + s.length, 0) + v.fairing.length;
-    const concrete = new THREE.MeshStandardMaterial({ color: 0x8d9090, roughness: 0.95 });
-    const steel = new THREE.MeshStandardMaterial({ color: 0x3b4148, roughness: 0.6, metalness: 0.4 });
+    const concrete = new THREE.MeshStandardMaterial({ color: 0x5d6064, roughness: 0.92 });
+    const steel = new THREE.MeshStandardMaterial({ color: 0x2b3036, roughness: 0.5, metalness: 0.6 });
     const pad = new THREE.Mesh(new THREE.CylinderGeometry(90, 90, 2, 48), concrete);
     pad.position.y = -0.9;
     g.add(pad);
@@ -216,10 +272,72 @@ export class FlightScene {
       leg.position.set(off + (dx * tw) / 2, towerH / 2, (dz * tw) / 2);
       g.add(leg);
     }
-    for (let y = 6; y < towerH; y += 6) {
-      const ring = new THREE.Mesh(new THREE.BoxGeometry(tw, 0.35, tw), steel);
+    // Lattice tower: rings plus X-bracing on every face
+    const bay = 6;
+    const diag = Math.hypot(tw, bay);
+    const tilt = Math.atan2(bay, tw);
+    for (let y = bay; y < towerH; y += bay) {
+      const ring = new THREE.Mesh(new THREE.BoxGeometry(tw, 0.3, tw), steel);
       ring.position.set(off, y, 0);
       g.add(ring);
+      for (const face of [0, 1, 2, 3]) {
+        for (const sgn of [1, -1]) {
+          const br = new THREE.Mesh(new THREE.BoxGeometry(diag, 0.18, 0.18), steel);
+          br.position.set(0, y - bay / 2, 0);
+          br.rotation.z = sgn * tilt;
+          const holder = new THREE.Group();
+          holder.add(br);
+          holder.position.set(off, 0, 0);
+          holder.rotation.y = (face * Math.PI) / 2;
+          br.position.z = tw / 2;
+          g.add(holder);
+        }
+      }
+    }
+    // Aircraft-warning beacons on the tower top
+    for (const dx of [-1, 1]) {
+      const b = new THREE.Mesh(new THREE.SphereGeometry(0.6, 12, 8), new THREE.MeshBasicMaterial({ color: 0xff3b2e }));
+      b.position.set(off + (dx * tw) / 2, towerH + 0.6, 0);
+      g.add(b);
+      this.beacons.push(b);
+    }
+    // Floodlights on masts around the pad, aimed at the vehicle
+    const aim = new THREE.Object3D();
+    aim.position.set(0, H * 0.45, 0);
+    g.add(aim);
+    for (const [x, z] of [[70, 45], [-60, 55], [15, -75]]) {
+      const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.5, 30, 8), steel);
+      mast.position.set(x, 15, z);
+      g.add(mast);
+      const lamp = new THREE.Mesh(new THREE.BoxGeometry(3, 1.6, 1), new THREE.MeshBasicMaterial({ color: 0xfff6e0 }));
+      lamp.position.set(x, 30.5, z);
+      lamp.lookAt(0, H * 0.45, 0);
+      g.add(lamp);
+      const spot = new THREE.SpotLight(0xe8efff, 2.2, 0, 0.22, 0.8, 0);
+      spot.position.set(x, 30, z);
+      spot.target = aim;
+      g.add(spot);
+      this.floods.push(spot);
+    }
+    // Exhaust cloud billboards, driven by mission time in update()
+    const smokeTex = (() => {
+      const c = document.createElement('canvas');
+      c.width = c.height = 64;
+      const x = c.getContext('2d')!;
+      const gr = x.createRadialGradient(32, 32, 2, 32, 32, 32);
+      gr.addColorStop(0, 'rgba(255,255,255,0.9)');
+      gr.addColorStop(0.5, 'rgba(255,255,255,0.35)');
+      gr.addColorStop(1, 'rgba(255,255,255,0)');
+      x.fillStyle = gr;
+      x.fillRect(0, 0, 64, 64);
+      return new THREE.CanvasTexture(c);
+    })();
+    for (let i = 0; i < 70; i++) {
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeTex, transparent: true, depthWrite: false, opacity: 0, color: 0xd8d4cf }));
+      sp.visible = false;
+      g.add(sp);
+      const a = Math.random() * Math.PI * 2;
+      this.smoke.push({ sp, dir: new THREE.Vector3(Math.cos(a), 0, Math.sin(a)), speed: 18 + Math.random() * 40, delay: Math.random() * 3.5, rise: 2 + Math.random() * 6, size: 20 + Math.random() * 30 });
     }
     const arm = new THREE.Mesh(new THREE.BoxGeometry(off - 1, 1.2, 1.6), steel);
     arm.position.set(off / 2, H * 0.85, 0);
@@ -268,9 +386,9 @@ export class FlightScene {
     }
   }
 
-  private buildStage(s: StageSpec, isTop: boolean): THREE.Group {
+  private buildStage(s: StageSpec, isTop: boolean, first = false): THREE.Group {
     const g = new THREE.Group();
-    const body = new THREE.MeshStandardMaterial({ color: 0xe8ecef, roughness: 0.45, metalness: 0.05 });
+    const body = new THREE.MeshStandardMaterial({ color: 0xf1f3f5, roughness: 0.32, metalness: 0.12 });
     const dark = new THREE.MeshStandardMaterial({ color: 0x1e232a, roughness: 0.6 });
     const bellMat = new THREE.MeshStandardMaterial({ color: 0x2a2d31, roughness: 0.35, metalness: 0.8, side: THREE.DoubleSide });
     const cyl = new THREE.Mesh(new THREE.CylinderGeometry(s.diameter / 2, s.diameter / 2, s.length, 48), body);
@@ -295,6 +413,21 @@ export class FlightScene {
       g.add(bell);
     }
     g.userData.bellLen = bellLen;
+    if (first) {
+      const r = s.diameter / 2;
+      const fin = new THREE.MeshStandardMaterial({ color: 0x3a3d42, roughness: 0.5, metalness: 0.7 });
+      for (let i = 0; i < 4; i++) {
+        const a = (i * Math.PI) / 2 + Math.PI / 4;
+        const gf = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.5, 0.12), fin);
+        gf.position.set(Math.cos(a) * (r + 0.6), s.length - Math.min(s.diameter * 0.55, s.length * 0.1) - 1, Math.sin(a) * (r + 0.6));
+        gf.rotation.y = -a;
+        g.add(gf);
+        const leg = new THREE.Mesh(new THREE.BoxGeometry(0.35, s.length * 0.22, 0.5), dark);
+        leg.position.set(Math.cos(a) * (r + 0.12), s.length * 0.11, Math.sin(a) * (r + 0.12));
+        leg.rotation.y = -a;
+        g.add(leg);
+      }
+    }
     return g;
   }
 
@@ -308,7 +441,7 @@ export class FlightScene {
     const base = y;
     this.stageOffsets = [];
     v.stages.forEach((s, i) => {
-      const sg = this.buildStage(s, i === v.stages.length - 1);
+      const sg = this.buildStage(s, i === v.stages.length - 1, i === 0);
       sg.position.y = y;
       this.stageOffsets.push(y);
       inner.add(sg);
@@ -361,6 +494,8 @@ export class FlightScene {
     } else this.boosterGroup = null;
     inner.scale.setScalar(KM);
     this.rocket.add(inner);
+    this.engineLight.position.set(0, -0.004, 0);
+    this.rocket.add(this.engineLight);
   }
 
   private addPlume(parent: THREE.Group, s: StageSpec, owner: 'core' | 'booster', stage: number) {
@@ -542,7 +677,7 @@ export class FlightScene {
     if (this.barge) this.barge.visible = this.mode !== 'orbital';
     this.scene.background = sky;
     const dark = this.mode === 'orbital' ? 1 : Math.max(0, 1 - sky.getHSL({ h: 0, s: 0, l: 0 }).l * 4);
-    (this.stars.material as THREE.PointsMaterial).opacity = dark;
+    (this.stars.material as THREE.PointsMaterial).opacity = Math.max(dark, 0.85);
     this.sun.position.copy(this.sunDir).multiplyScalar(10);
     this.sun.target.position.set(0, 0, 0);
 
@@ -607,7 +742,37 @@ export class FlightScene {
     }
     this.camera.updateProjectionMatrix();
     this.stars.position.copy(this.camera.position);
-    this.renderer.render(this.scene, this.camera);
+    this.moon.position.copy(this.camera.position).addScaledVector(this.moonDir, 3e5);
+    this.moon.lookAt(this.camera.position);
+    this.moon.visible = this.mode !== 'orbital';
+    this.moonLight.position.copy(this.moonDir).multiplyScalar(10);
+    // The vehicle climbs out of Earth's shadow: sunlight on the airframe grows with altitude
+    this.sun.intensity = 0.15 + 2.6 * Math.min(1, Math.max(0, (s.alt - 15000) / 60000));
+    const flick = 0.85 + 0.3 * Math.sin(wallTime * 53) * Math.sin(wallTime * 31);
+    const air = Math.min(1, s.pressure / 20000 + 0.15);
+    this.engineLight.intensity = s.burning || (t < 0 && t > -2.5) ? 7 * flick * air * (s.burning ? Math.max(s.throttle, 0.6) : (t + 2.5) / 2.5) : 0;
+    const padFade = Math.max(0, 1 - s.alt / 4000);
+    for (const f of this.floods) f.intensity = 2.2 * padFade;
+    for (const b of this.beacons) b.visible = Math.sin(wallTime * 3) > -0.2;
+    // Exhaust cloud: rolls outward along the ground from ignition, lit orange by the engines near the source
+    const age0 = t + 2.5;
+    for (const p of this.smoke) {
+      const age = age0 - p.delay;
+      if (age <= 0 || age > 60 || this.soloStage0) {
+        p.sp.visible = false;
+        continue;
+      }
+      const reach = p.speed * 6 * (1 - Math.exp(-age / 6));
+      p.sp.visible = true;
+      p.sp.position.set(p.dir.x * reach, 4 + p.rise * age * 0.6, p.dir.z * reach);
+      const sz = p.size * (1 + age * 0.45);
+      p.sp.scale.set(sz, sz * 0.8, 1);
+      const m = p.sp.material as THREE.SpriteMaterial;
+      m.opacity = Math.min(0.42, age * 0.4) * Math.max(0, 1 - age / 60);
+      const hot = Math.max(0, 1 - reach / 160) * (s.burning && s.alt < 3000 ? 1 : 0);
+      m.color.setRGB(0.55 + 0.45 * hot, 0.52 + 0.2 * hot, 0.5 - 0.15 * hot);
+    }
+    this.composer.render();
   }
 
   /** Height of the middle of what is still attached, along the vehicle axis [m]. */
@@ -622,6 +787,8 @@ export class FlightScene {
     const w = this.canvas.clientWidth || 1;
     const h = this.canvas.clientHeight || 1;
     this.renderer.setSize(w, h, false);
+    this.composer?.setSize(w, h);
+    this.bloom?.setSize(w, h);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
   }

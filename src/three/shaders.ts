@@ -99,6 +99,10 @@ void main(){
   vec3 lit = col*(0.035 + 1.05*max(d,0.0));
   vec3 R = reflect(-uSun,N);
   lit += (1.0-land)*(1.0-cloud)*pow(max(dot(R,V),0.0),60.0)*0.45*day;
+  // City lights on the night side
+  float town = smoothstep(0.58, 0.82, snoise(vLocal*240.0)*0.5+0.5) * smoothstep(0.35, 0.9, snoise(vLocal*35.0)*0.5+0.5);
+  float far = smoothstep(40.0, 400.0, length(cameraPosition - vPosW));
+  lit += vec3(1.0,0.7,0.36) * town * land * (1.0 - day) * (1.0 - cloud*0.8) * 1.4 * far;
   float fres = pow(1.0-max(dot(N,V),0.0),3.0);
   lit = mix(lit, vec3(0.45,0.66,0.92)*day, fres*0.55);
   gl_FragColor = vec4(lit,1.0);
