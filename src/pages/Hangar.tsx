@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import ClimbHero from '../components/ClimbHero';
 import RocketElevation, { stackHeight } from '../components/RocketElevation';
 import { G0 } from '../physics/constants';
 import { PRESETS } from '../sim/presets';
@@ -36,13 +37,16 @@ export default function Hangar() {
     return true;
   };
 
+  const listRef = useRef<HTMLDivElement>(null);
   const m0 = liftoffMass(chosen.v);
   const T0 = liftoffThrust(chosen.v);
 
   return (
-    <div className="hangar">
+    <>
+    <ClimbHero vehicle={vehicle} onDone={() => listRef.current?.scrollIntoView({ behavior: 'smooth' })} />
+    <div className="hangar" ref={listRef}>
       <header className="hangar-head">
-        <h1>Five launch vehicles, drawn to one scale</h1>
+        <h2 className="hangar-h">Five launch vehicles, drawn to one scale</h2>
         <p className="lede">
           Pick one to fly as it is, or open it in the Vehicle Bay and change anything from engine count to the pitch
           program. The physics doesn't change between vehicles. Only the numbers do.
@@ -140,5 +144,6 @@ export default function Hangar() {
         you see above in one line of maths.
       </p>
     </div>
+    </>
   );
 }

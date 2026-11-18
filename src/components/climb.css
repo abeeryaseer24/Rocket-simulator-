@@ -1,0 +1,250 @@
+.climb {
+  position: relative;
+  height: 460vh;
+  color: #eef3f6;
+  --tape: rgba(238, 243, 246, 0.6);
+}
+.climb.light {
+  color: var(--ink);
+  --tape: rgba(20, 35, 58, 0.6);
+}
+.climb-stage {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow: hidden;
+}
+.climb-stars {
+  position: absolute;
+  inset: 0;
+}
+.climb-earth {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.climb-rocket {
+  position: absolute;
+  left: 50%;
+  will-change: transform, bottom;
+}
+.climb-rocket-body {
+  position: relative;
+}
+.climb-rocket-body > svg {
+  display: block;
+  position: relative;
+  z-index: 2;
+  filter: drop-shadow(0 0 18px rgba(0, 0, 0, 0.25));
+}
+.climb-flame {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  border-radius: 50% 50% 46% 46% / 12% 12% 88% 88%;
+  background: radial-gradient(ellipse 50% 70% at 50% 6%, #fffaf0 0%, #ffe39a 18%, #ff9a3a 42%, rgba(255, 110, 40, 0.35) 66%, rgba(255, 90, 30, 0) 80%);
+  filter: blur(1.5px);
+  transform-origin: 50% 0;
+  animation: flame 90ms infinite alternate;
+  z-index: 1;
+  mix-blend-mode: screen;
+}
+@keyframes flame {
+  from {
+    transform: translateX(-50%) scaleY(0.94) scaleX(1.02);
+  }
+  to {
+    transform: translateX(-50%) scaleY(1.04) scaleX(0.97);
+  }
+}
+.climb-falling {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  z-index: 1;
+  transform-origin: 50% 30%;
+}
+
+.climb-tape {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  position: absolute;
+  right: clamp(16px, 4vw, 56px);
+  top: 0;
+  bottom: 0;
+  width: min(270px, 40vw);
+  border-left: 1px solid var(--tape);
+}
+.climb-tape li {
+  position: absolute;
+  left: 0;
+  transform: translateY(-50%);
+  padding-left: 14px;
+  font-size: var(--t-sm);
+  white-space: nowrap;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  opacity: 0.95;
+  transition: opacity 200ms;
+}
+.climb-tape li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 9px;
+  height: 1px;
+  background: currentColor;
+}
+.climb-tape li span {
+  font-size: var(--t-xs);
+  opacity: 0.7;
+}
+.climb-tape li.passed {
+  opacity: 0.45;
+}
+.climb-tape .climb-tape-now {
+  left: -6px;
+  width: 11px;
+  height: 11px;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--kapton);
+  box-shadow: 0 0 0 4px rgba(185, 130, 26, 0.25);
+}
+.climb-tape .climb-tape-now::before {
+  display: none;
+}
+
+.climb-readout {
+  position: absolute;
+  left: clamp(16px, 4vw, 56px);
+  top: 50%;
+  transform: translateY(-50%);
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 260px;
+}
+.climb-readout dt {
+  font-size: var(--t-xs);
+  opacity: 0.72;
+}
+.climb-readout dd {
+  margin: 0;
+  font-weight: 620;
+}
+.climb-readout dd.big {
+  font-variation-settings: 'wdth' 125;
+  font-size: clamp(2.2rem, 4.5vw, 3.6rem);
+  font-weight: 760;
+  line-height: 1;
+}
+.climb-readout dd small {
+  font-size: var(--t-md);
+  margin-left: 6px;
+  opacity: 0.7;
+}
+.climb-phase {
+  margin-top: 6px;
+  padding-left: 10px;
+  border-left: 3px solid var(--kapton);
+  font-weight: 600;
+  font-size: var(--t-sm);
+}
+
+.climb-title {
+  position: absolute;
+  left: clamp(16px, 4vw, 56px);
+  top: clamp(24px, 9vh, 96px);
+  width: min(36vw, 520px);
+}
+.climb-title h1 {
+  font-size: clamp(3rem, 8.5vw, 8rem);
+  font-variation-settings: 'wdth' 125;
+  font-weight: 860;
+  letter-spacing: 0.02em;
+  line-height: 0.9;
+}
+.climb-title p {
+  margin-top: 16px;
+  font-size: var(--t-lg);
+}
+.climb-cue {
+  display: block;
+  margin: 26px 0 0;
+  width: 2px;
+  height: 46px;
+  background: linear-gradient(currentColor, transparent);
+  animation: cue 1.8s ease-in-out infinite;
+}
+@keyframes cue {
+  0% {
+    transform: scaleY(0.2);
+    transform-origin: top;
+    opacity: 0;
+  }
+  40% {
+    opacity: 1;
+  }
+  100% {
+    transform: scaleY(1);
+    transform-origin: top;
+    opacity: 0;
+  }
+}
+
+.climb-end {
+  position: absolute;
+  left: 50%;
+  top: 12%;
+  transform: translateX(-50%);
+  text-align: center;
+  width: min(760px, 90vw);
+}
+.climb-end h2 {
+  font-size: clamp(1.8rem, 4.4vw, 3.2rem);
+}
+.climb-end p {
+  margin: 14px auto 22px;
+  font-size: var(--t-lg);
+  max-width: 46ch;
+  opacity: 0.85;
+}
+.climb-cta {
+  background: var(--kapton);
+  border-color: var(--kapton);
+}
+
+@media (max-width: 760px) {
+  .climb-title {
+    width: auto;
+    right: 16px;
+  }
+  .climb-tape {
+    width: 46vw;
+  }
+  .climb-tape li {
+    font-size: var(--t-xs);
+  }
+  .climb-readout {
+    top: auto;
+    bottom: 76px;
+    transform: none;
+    gap: 6px;
+  }
+  .climb-readout > div:nth-child(n + 3) {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .climb-flame,
+  .climb-cue {
+    animation: none;
+  }
+}

@@ -2,7 +2,7 @@
   padding: clamp(28px, 5vw, 64px) var(--gutter) 80px;
   max-width: 1320px;
 }
-.hangar-head h1 {
+.hangar-head .hangar-h {
   max-width: 15ch;
   font-size: clamp(2.2rem, 5vw, var(--t-5xl));
 }
