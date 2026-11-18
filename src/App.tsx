@@ -11,6 +11,7 @@ const Academy = lazy(() => import('./pages/Academy'));
 const Analysis = lazy(() => import('./pages/Analysis'));
 const Missions = lazy(() => import('./pages/Missions'));
 const Avionics = lazy(() => import('./pages/Avionics'));
+const About = lazy(() => import('./pages/About'));
 
 /* Line icons drawn for this app: each is the object the page is about. */
 const icons = {
@@ -68,6 +69,13 @@ const icons = {
       <path d="M24 6.5c-3.5-1.2-7-1-10 1v16c3-2 6.5-2.2 10-1z" />
     </svg>
   ),
+  about: (
+    <svg viewBox="0 0 28 28" aria-hidden>
+      <circle cx="14" cy="14" r="10.5" />
+      <path d="M14 12.5V20" />
+      <circle cx="14" cy="8.6" r="0.6" />
+    </svg>
+  ),
 };
 
 function Rail() {
@@ -80,6 +88,7 @@ function Rail() {
     ['/analysis', 'Analysis', 'analysis'],
     ['/avionics', 'Avionics', 'avionics'],
     ['/academy', 'Academy', 'academy'],
+    ['/about', 'About', 'about'],
   ];
   return (
     <aside className="rail">
@@ -151,6 +160,7 @@ export default function App() {
             <Route path="/avionics/:sub" element={<Avionics />} />
             <Route path="/academy" element={<Academy />} />
             <Route path="/academy/:lesson" element={<Academy />} />
+            <Route path="/about" element={<About />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
