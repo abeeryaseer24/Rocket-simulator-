@@ -8,6 +8,7 @@ const Flight = lazy(() => import('./pages/Flight'));
 const VehicleBay = lazy(() => import('./pages/VehicleBay'));
 const Telemetry = lazy(() => import('./pages/Telemetry'));
 const Academy = lazy(() => import('./pages/Academy'));
+const Analysis = lazy(() => import('./pages/Analysis'));
 
 /* Line icons drawn for this app: each is the object the page is about. */
 const icons = {
@@ -36,6 +37,16 @@ const icons = {
       <path d="M5 21c4-1 6-4 8-8s5-7 11-8" />
     </svg>
   ),
+  analysis: (
+    <svg viewBox="0 0 28 28" aria-hidden>
+      <path d="M3 24h22M3 24V4" />
+      <circle cx="9" cy="17" r="1.6" />
+      <circle cx="13" cy="12" r="1.6" />
+      <circle cx="17" cy="14" r="1.6" />
+      <circle cx="15" cy="9" r="1.6" />
+      <circle cx="21" cy="7" r="1.6" />
+    </svg>
+  ),
   academy: (
     <svg viewBox="0 0 28 28" aria-hidden>
       <path d="M4 6.5c3.5-1.2 7-1 10 1v16c-3-2-6.5-2.2-10-1z" />
@@ -50,6 +61,7 @@ function Rail() {
     ['/flight', 'Flight', 'flight'],
     ['/vehicle', 'Vehicle', 'vehicle'],
     ['/telemetry', 'Telemetry', 'telemetry'],
+    ['/analysis', 'Analysis', 'analysis'],
     ['/academy', 'Academy', 'academy'],
   ];
   return (
@@ -111,6 +123,8 @@ export default function App() {
             <Route path="/vehicle/:section" element={<VehicleBay />} />
             <Route path="/telemetry" element={<Navigate to="/telemetry/altitude" replace />} />
             <Route path="/telemetry/:channel" element={<Telemetry />} />
+            <Route path="/analysis" element={<Navigate to="/analysis/dispersion" replace />} />
+            <Route path="/analysis/:tool" element={<Analysis />} />
             <Route path="/academy" element={<Academy />} />
             <Route path="/academy/:lesson" element={<Academy />} />
             <Route path="*" element={<Navigate to="/" replace />} />
