@@ -78,18 +78,26 @@ const LANDMARKS: Array<[number, string]> = [
 export function AltitudeTape({ altKm, events }: { altKm: number; events: FlightEvent[] }) {
   const y = (a: number) => 50 - (Math.log1p(Math.max(a, 0)) - Math.log1p(Math.max(altKm, 0))) * 15;
   const marks = [...LANDMARKS.map(([a, l]) => ({ a, l, ev: false })), ...events.filter((e) => ['max-q', 'meco', 'stage-sep', 'fairing-sep', 'seco', 'booster-sep', 'engine-out'].includes(e.kind)).map((e) => ({ a: e.alt / 1000, l: e.label, ev: true }))];
+  // Place marks top-down; a label that would sit within 4.5 % of the previous one keeps its tick but drops its text.
+  // Flown events win over static landmarks when they collide.
+  const placed = marks
+    .map((m) => ({ ...m, yy: y(m.a) }))
+    .filter((m) => m.yy >= -5 && m.yy <= 105)
+    .sort((a, b) => a.yy - b.yy || Number(b.ev) - Number(a.ev));
+  let lastLabelY = -Infinity;
+  const shown = placed.map((m) => {
+    const room = m.yy - lastLabelY >= 4.5 && Math.abs(m.yy - 50) > 3.5;
+    if (room && m.l) lastLabelY = m.yy;
+    return { ...m, label: room ? m.l : '' };
+  });
   return (
     <div className="tape" aria-hidden>
-      {marks.map((m, i) => {
-        const yy = y(m.a);
-        if (yy < -5 || yy > 105) return null;
-        return (
-          <div key={i} className={'tape-mark' + (m.ev ? ' ev' : '')} style={{ top: `${yy}%` }}>
-            <span className="num">{m.a < 10 ? m.a.toFixed(1) : m.a.toFixed(0)}</span>
-            {m.l && <em>{m.l}</em>}
-          </div>
-        );
-      })}
+      {shown.map((m, i) => (
+        <div key={i} className={'tape-mark' + (m.ev ? ' ev' : '') + (m.label ? '' : ' bare')} style={{ top: `${m.yy}%` }}>
+          {m.label && <span className="num">{m.a < 10 ? m.a.toFixed(1) : m.a.toFixed(0)}</span>}
+          {m.label && <em>{m.label}</em>}
+        </div>
+      ))}
       <div className="tape-caret" style={{ top: '50%' }}>
         <span className="num">{altKm < 10 ? altKm.toFixed(2) : altKm.toFixed(1)} km</span>
       </div>

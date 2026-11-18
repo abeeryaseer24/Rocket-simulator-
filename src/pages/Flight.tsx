@@ -432,7 +432,7 @@ export default function Flight() {
         </section>
       )}
 
-      {s && phase !== 'ready' && cam !== 'orbital' && cam !== 'booster' && <AltitudeTape altKm={s.alt / 1000} events={passed} />}
+      {s && phase !== 'ready' && cam !== 'orbital' && cam !== 'booster' && !showVerdict && <AltitudeTape altKm={s.alt / 1000} events={passed} />}
 
       {cam === 'booster' && result?.recovery && (
         <aside className="booster-hud" aria-label="Booster recovery">
@@ -471,7 +471,7 @@ export default function Flight() {
         </aside>
       )}
 
-      {showVerdict && result && (
+      {showVerdict && result && cam !== 'booster' && (
         <aside className={'flight-verdict ' + result.outcome}>
           <h2>{OUTCOME_TITLE[result.outcome]}</h2>
           <p>{result.verdict}</p>
