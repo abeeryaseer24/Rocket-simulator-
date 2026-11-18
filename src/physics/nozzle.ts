@@ -26,3 +26,20 @@ export const pressureRatio = (M: number, g = 1.2): number => Math.pow(1 + ((g - 
 
 /** Exit pressure [Pa] from chamber pressure [Pa] and expansion ratio. */
 export const exitPressure = (pc: number, eps: number, g = 1.2): number => pc * pressureRatio(exitMach(eps, g), g);
+
+/** Mach number at a station of area ratio A/A* ≥ 1, on the subsonic or supersonic branch. */
+export function machFromArea(ar: number, g: number, supersonic: boolean): number {
+  if (ar <= 1) return 1;
+  let lo = supersonic ? 1 : 1e-6;
+  let hi = supersonic ? 60 : 1;
+  for (let i = 0; i < 80; i++) {
+    const mid = (lo + hi) / 2;
+    const a = areaRatio(mid, g);
+    // Subsonic branch: A/A* falls as M rises; supersonic: it rises
+    if (supersonic ? a < ar : a > ar) lo = mid;
+    else hi = mid;
+  }
+  return (lo + hi) / 2;
+}
+
+export const temperatureRatio = (M: number, g = 1.2): number => 1 / (1 + ((g - 1) / 2) * M * M);

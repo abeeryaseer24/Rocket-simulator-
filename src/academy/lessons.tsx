@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
+import NozzleCutaway from './NozzleCutaway';
 import {
   AtmosphereWidget,
   DragWidget,
@@ -121,6 +122,40 @@ export const LESSONS: Lesson[] = [
           self-consistent.
         </p>
         <Try to="/vehicle/engines">Give the first stage the vacuum engine’s 8.5 m² exit area and see what sea-level thrust does.</Try>
+      </>
+    ),
+  },
+  {
+    id: 'nozzle',
+    title: 'Inside the nozzle',
+    discipline: 'Thermodynamics and propulsion',
+    summary: 'A cutaway of a de Laval nozzle: how a converging–diverging duct turns heat into supersonic flow.',
+    body: () => (
+      <>
+        <p>
+          It seems backwards that a nozzle should get <em>wider</em> to make gas go faster. For subsonic flow, narrowing a pipe
+          speeds the gas up, as with a garden hose. Once the flow reaches the speed of sound the rule reverses. Combining mass
+          conservation with the momentum and energy equations for a compressible gas gives
+        </p>
+        <TeX block>{'\\frac{dA}{A} = \\left(M^2 - 1\\right)\\frac{dv}{v}'}</TeX>
+        <p>
+          Below Mach 1 the bracket is negative, so a shrinking area (<TeX>{'dA<0'}</TeX>) raises velocity. Above Mach 1 it is
+          positive, so only a growing area keeps accelerating the gas. The flow is exactly sonic where <TeX>{'dA = 0'}</TeX>, at
+          the throat. Downstream, every station's Mach number follows from its area alone:
+        </p>
+        <TeX block>{'\\frac{T}{T_c} = \\left(1+\\frac{\\gamma-1}{2}M^2\\right)^{-1}, \\qquad \\frac{p}{p_c} = \\left(\\frac{T}{T_c}\\right)^{\\frac{\\gamma}{\\gamma-1}}'}</TeX>
+        <p>
+          As the gas expands it cools. Its random thermal motion becomes directed motion, which is the whole point. Chamber gas at
+          3,500 K leaves a vacuum engine's bell well below 1,500 K, moving at more than 3 km/s.
+        </p>
+        <NozzleCutaway />
+        <p>
+          Raise the expansion ratio at sea level and watch the exit pressure fall below ambient. A little over-expansion is
+          tolerable. Below about 40 % of ambient the boundary layer separates from the wall, and the side loads that follow have
+          cracked real nozzles during ground tests. This is why first-stage engines use modest bells, and why vacuum engines
+          are tested in altitude chambers.
+        </p>
+        <Try to="/vehicle/engines">Compare the expansion ratios of your first- and upper-stage engines.</Try>
       </>
     ),
   },

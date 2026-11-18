@@ -103,3 +103,13 @@ describe('Isentropic nozzle', () => {
     expect(pe).toBeLessThan(110e3);
   });
 });
+
+describe('nozzle stations', () => {
+  it('inverts the area–Mach relation on both branches', async () => {
+    const { areaRatio, machFromArea } = await import('./nozzle');
+    // NACA 1135 (γ = 1.4): A/A* = 1.6875 at M = 2 and at M ≈ 0.3725
+    expect(machFromArea(1.6875, 1.4, true)).toBeCloseTo(2, 3);
+    expect(areaRatio(machFromArea(1.6875, 1.4, false), 1.4)).toBeCloseTo(1.6875, 4);
+    expect(machFromArea(1.6875, 1.4, false)).toBeCloseTo(0.3725, 3);
+  });
+});
