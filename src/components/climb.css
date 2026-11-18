@@ -1,22 +1,41 @@
 .climb {
   position: relative;
-  height: 460vh;
+  height: 520vh;
   color: #eef3f6;
-  --tape: rgba(238, 243, 246, 0.6);
-}
-.climb.light {
-  color: var(--ink);
-  --tape: rgba(20, 35, 58, 0.6);
+  --tape: rgba(238, 243, 246, 0.55);
+  background: #000;
 }
 .climb-stage {
   position: sticky;
   top: 0;
   height: 100vh;
   overflow: hidden;
+  isolation: isolate;
 }
 .climb-stars {
   position: absolute;
   inset: 0;
+}
+/* Faint Milky Way band */
+.climb-nebula {
+  position: absolute;
+  inset: -20% -10%;
+  background:
+    radial-gradient(ellipse 60% 14% at 40% 30%, rgba(150, 170, 255, 0.16), transparent 70%),
+    radial-gradient(ellipse 40% 10% at 65% 22%, rgba(255, 190, 150, 0.08), transparent 70%),
+    radial-gradient(ellipse 80% 8% at 50% 35%, rgba(200, 210, 255, 0.07), transparent 70%);
+  transform-origin: center;
+  rotate: -18deg;
+  pointer-events: none;
+  will-change: transform;
+}
+.climb-glow {
+  position: absolute;
+  left: -10%;
+  right: -10%;
+  height: 36%;
+  background: radial-gradient(ellipse 60% 50% at 50% 100%, rgba(255, 140, 70, 0.28), rgba(90, 120, 220, 0.12) 45%, transparent 75%);
+  pointer-events: none;
 }
 .climb-earth {
   position: absolute;
@@ -24,10 +43,81 @@
   width: 100%;
   height: 100%;
 }
+.climb-city {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 18%;
+  pointer-events: none;
+  background-image:
+    radial-gradient(1.4px 1.4px at 12% 20%, #ffd38a, transparent),
+    radial-gradient(1.2px 1.2px at 18% 45%, #ffcf7a, transparent),
+    radial-gradient(1.6px 1.6px at 27% 30%, #ffe0a8, transparent),
+    radial-gradient(1px 1px at 33% 62%, #ffc56a, transparent),
+    radial-gradient(1.5px 1.5px at 41% 18%, #fff0c8, transparent),
+    radial-gradient(1.2px 1.2px at 58% 40%, #ffd38a, transparent),
+    radial-gradient(1.4px 1.4px at 66% 24%, #ffcf7a, transparent),
+    radial-gradient(1px 1px at 72% 58%, #ffe0a8, transparent),
+    radial-gradient(1.6px 1.6px at 81% 33%, #ffd38a, transparent),
+    radial-gradient(1.2px 1.2px at 89% 50%, #ffc56a, transparent),
+    radial-gradient(1.3px 1.3px at 95% 22%, #fff0c8, transparent),
+    radial-gradient(1px 1px at 6% 66%, #ffd38a, transparent);
+}
+.climb-pad-lights {
+  position: absolute;
+  left: 50%;
+  height: 0;
+  pointer-events: none;
+}
+.climb-pad-lights i {
+  position: absolute;
+  top: -3px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #ff5a4a;
+  box-shadow: 0 0 10px 2px rgba(255, 70, 50, 0.8);
+  animation: blink 1.6s infinite;
+}
+.climb-pad-lights i:nth-child(odd) {
+  background: #fff4d6;
+  box-shadow: 0 0 12px 3px rgba(255, 230, 170, 0.75);
+  animation-duration: 2.4s;
+}
+@keyframes blink {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+.climb-clouds {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+.climb-clouds span {
+  position: absolute;
+  height: 9vh;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 60%, rgba(150, 170, 210, 0.75), rgba(90, 110, 160, 0.35) 45%, transparent 70%);
+  filter: blur(14px);
+}
+.climb-smoke {
+  position: absolute;
+  left: 50%;
+  width: 16vw;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse 50% 60% at 50% 100%, rgba(255, 200, 150, 0.35), rgba(160, 150, 160, 0.25) 40%, transparent 72%);
+  filter: blur(18px);
+  pointer-events: none;
+  z-index: 2;
+}
 
 .climb-rocket {
   position: absolute;
   left: 50%;
+  z-index: 4;
   will-change: transform, bottom;
 }
 .climb-rocket-body {
@@ -37,27 +127,36 @@
   display: block;
   position: relative;
   z-index: 2;
-  filter: drop-shadow(0 0 18px rgba(0, 0, 0, 0.25));
+  filter: drop-shadow(0 0 22px rgba(255, 170, 90, 0.18));
 }
 .climb-flame {
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
   border-radius: 50% 50% 46% 46% / 12% 12% 88% 88%;
-  background: radial-gradient(ellipse 50% 70% at 50% 6%, #fffaf0 0%, #ffe39a 18%, #ff9a3a 42%, rgba(255, 110, 40, 0.35) 66%, rgba(255, 90, 30, 0) 80%);
-  filter: blur(1.5px);
+  background: radial-gradient(ellipse 50% 70% at 50% 6%, #ffffff 0%, #fff1c0 14%, #ffb24a 38%, rgba(255, 110, 40, 0.45) 62%, rgba(255, 90, 30, 0) 80%);
+  filter: blur(1.5px) drop-shadow(0 0 28px rgba(255, 150, 60, 0.9));
   transform-origin: 50% 0;
-  animation: flame 90ms infinite alternate;
+  animation: flame 80ms infinite alternate;
   z-index: 1;
   mix-blend-mode: screen;
 }
 @keyframes flame {
   from {
-    transform: translateX(-50%) scaleY(0.94) scaleX(1.02);
+    transform: translateX(-50%) scaleY(0.93) scaleX(1.03);
   }
   to {
-    transform: translateX(-50%) scaleY(1.04) scaleX(0.97);
+    transform: translateX(-50%) scaleY(1.05) scaleX(0.96);
   }
+}
+.climb-lightshaft {
+  position: absolute;
+  left: 50%;
+  width: 60vw;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse 30% 50% at 50% 0%, rgba(255, 170, 80, 0.32), transparent 70%);
+  pointer-events: none;
+  z-index: 0;
 }
 .climb-falling {
   position: absolute;
@@ -75,8 +174,10 @@
   right: clamp(16px, 4vw, 56px);
   top: 0;
   bottom: 0;
-  width: min(270px, 40vw);
+  width: min(250px, 40vw);
   border-left: 1px solid var(--tape);
+  z-index: 5;
+  mask-image: linear-gradient(transparent, #000 15%, #000 85%, transparent);
 }
 .climb-tape li {
   position: absolute;
@@ -88,8 +189,6 @@
   display: flex;
   flex-direction: column;
   line-height: 1.2;
-  opacity: 0.95;
-  transition: opacity 200ms;
 }
 .climb-tape li::before {
   content: '';
@@ -102,10 +201,10 @@
 }
 .climb-tape li span {
   font-size: var(--t-xs);
-  opacity: 0.7;
+  opacity: 0.6;
 }
 .climb-tape li.passed {
-  opacity: 0.45;
+  opacity: 0.4;
 }
 .climb-tape .climb-tape-now {
   left: -6px;
@@ -114,7 +213,7 @@
   padding: 0;
   border-radius: 50%;
   background: var(--kapton);
-  box-shadow: 0 0 0 4px rgba(185, 130, 26, 0.25);
+  box-shadow: 0 0 0 4px rgba(185, 130, 26, 0.25), 0 0 18px rgba(255, 180, 60, 0.8);
 }
 .climb-tape .climb-tape-now::before {
   display: none;
@@ -124,16 +223,16 @@
   position: absolute;
   left: clamp(16px, 4vw, 56px);
   top: 50%;
-  transform: translateY(-50%);
   margin: 0;
   display: flex;
   flex-direction: column;
   gap: 12px;
   max-width: 260px;
+  z-index: 5;
 }
 .climb-readout dt {
   font-size: var(--t-xs);
-  opacity: 0.72;
+  opacity: 0.65;
 }
 .climb-readout dd {
   margin: 0;
@@ -141,14 +240,15 @@
 }
 .climb-readout dd.big {
   font-variation-settings: 'wdth' 125;
-  font-size: clamp(2.2rem, 4.5vw, 3.6rem);
-  font-weight: 760;
+  font-size: clamp(2.4rem, 5vw, 4rem);
+  font-weight: 780;
   line-height: 1;
+  text-shadow: 0 0 30px rgba(120, 170, 255, 0.35);
 }
 .climb-readout dd small {
   font-size: var(--t-md);
   margin-left: 6px;
-  opacity: 0.7;
+  opacity: 0.6;
 }
 .climb-phase {
   margin-top: 6px;
@@ -161,40 +261,64 @@
 .climb-title {
   position: absolute;
   left: clamp(16px, 4vw, 56px);
-  top: clamp(24px, 9vh, 96px);
-  width: min(36vw, 520px);
+  top: clamp(24px, 10vh, 110px);
+  width: min(46vw, 640px);
+  z-index: 6;
+  will-change: transform, opacity, filter;
 }
 .climb-title h1 {
-  font-size: clamp(3rem, 8.5vw, 8rem);
+  font-size: clamp(3.4rem, 10vw, 9.5rem);
   font-variation-settings: 'wdth' 125;
-  font-weight: 860;
-  letter-spacing: 0.02em;
-  line-height: 0.9;
+  font-weight: 880;
+  letter-spacing: 0.01em;
+  line-height: 0.92;
+  color: #f4f7fb;
+  overflow: hidden;
+  padding-bottom: 0.06em;
+  background: linear-gradient(180deg, #ffffff 30%, #9fb6d8 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+.climb-title .ch {
+  display: inline-block;
+  color: transparent;
 }
 .climb-title p {
-  margin-top: 16px;
+  margin-top: 18px;
   font-size: var(--t-lg);
+  color: rgba(230, 238, 246, 0.82);
+  max-width: 36ch;
 }
 .climb-cue {
   display: block;
-  margin: 26px 0 0;
-  width: 2px;
-  height: 46px;
-  background: linear-gradient(currentColor, transparent);
+  margin-top: 34px;
+  width: 26px;
+  height: 42px;
+  border: 1.5px solid rgba(238, 243, 246, 0.6);
+  border-radius: 14px;
+  position: relative;
+}
+.climb-cue span {
+  position: absolute;
+  left: 50%;
+  top: 8px;
+  width: 4px;
+  height: 8px;
+  margin-left: -2px;
+  border-radius: 2px;
+  background: var(--kapton);
   animation: cue 1.8s ease-in-out infinite;
 }
 @keyframes cue {
   0% {
-    transform: scaleY(0.2);
-    transform-origin: top;
-    opacity: 0;
-  }
-  40% {
+    transform: translateY(0);
     opacity: 1;
   }
+  70% {
+    transform: translateY(14px);
+    opacity: 0;
+  }
   100% {
-    transform: scaleY(1);
-    transform-origin: top;
     opacity: 0;
   }
 }
@@ -203,22 +327,24 @@
   position: absolute;
   left: 50%;
   top: 12%;
-  transform: translateX(-50%);
   text-align: center;
-  width: min(760px, 90vw);
+  width: min(780px, 90vw);
+  z-index: 6;
 }
 .climb-end h2 {
-  font-size: clamp(1.8rem, 4.4vw, 3.2rem);
+  font-size: clamp(1.9rem, 4.6vw, 3.4rem);
+  text-shadow: 0 0 40px rgba(120, 170, 255, 0.3);
 }
 .climb-end p {
-  margin: 14px auto 22px;
+  margin: 14px auto 24px;
   font-size: var(--t-lg);
   max-width: 46ch;
-  opacity: 0.85;
+  opacity: 0.8;
 }
 .climb-cta {
   background: var(--kapton);
   border-color: var(--kapton);
+  box-shadow: 0 0 30px rgba(220, 160, 50, 0.45);
 }
 
 @media (max-width: 760px) {
@@ -227,15 +353,15 @@
     right: 16px;
   }
   .climb-tape {
-    width: 46vw;
+    width: 44vw;
   }
   .climb-tape li {
     font-size: var(--t-xs);
   }
   .climb-readout {
-    top: auto;
+    top: auto !important;
     bottom: 76px;
-    transform: none;
+    transform: none !important;
     gap: 6px;
   }
   .climb-readout > div:nth-child(n + 3) {
@@ -244,7 +370,8 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .climb-flame,
-  .climb-cue {
+  .climb-cue span,
+  .climb-pad-lights i {
     animation: none;
   }
 }
