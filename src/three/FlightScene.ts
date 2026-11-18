@@ -98,6 +98,8 @@ export class FlightScene {
   private stageOffsets: number[] = [];
   private stackH = 50;
   private last = { stage: 0, boosters: true, fairing: true };
+  /** Mission time of the previous update, to tell continuous playback from a seek */
+  private lastT = -Infinity;
   private vehicle: Vehicle;
   private result: FlightResult | null = null;
   private site: Vec3;
@@ -532,6 +534,7 @@ export class FlightScene {
     this.debris.forEach((d) => this.scene.remove(d.obj));
     this.debris = [];
     this.last = { stage: 0, boosters: true, fairing: true };
+    this.lastT = -Infinity;
     this.stageGroups.forEach((g) => (g.visible = true));
     if (this.boosterGroup) this.boosterGroup.visible = true;
     if (this.fairingGroup) this.fairingGroup.visible = true;
@@ -602,6 +605,10 @@ export class FlightScene {
       if (this.fairingGroup) this.fairingGroup.visible = false;
     } else {
       if (this.result) {
+        // Only animate a separation seen during continuous playback; after a seek, hardware that
+        // was jettisoned long ago must not appear to separate at the new time
+        const continuous = t - this.lastT >= 0 && t - this.lastT < 1.5;
+        if (!continuous) this.last = { stage: s.stage, boosters: s.boosters, fairing: s.fairing };
         if (s.stage > this.last.stage) {
           for (let i = this.last.stage; i < s.stage; i++) {
             const g = this.stageGroups[i];
@@ -613,6 +620,7 @@ export class FlightScene {
         if (this.fairingGroup && this.last.fairing && !s.fairing) this.fairingGroup.children.forEach((c) => this.spawnDebris(c, s, 6));
         this.last = { stage: s.stage, boosters: s.boosters, fairing: s.fairing };
       }
+      this.lastT = t;
       this.stageGroups.forEach((g, i) => (g.visible = i >= s.stage));
       if (this.boosterGroup) this.boosterGroup.visible = s.boosters;
       if (this.fairingGroup) this.fairingGroup.visible = s.fairing;
