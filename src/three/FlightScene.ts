@@ -8,7 +8,7 @@ import type { FlightResult, Sample } from '../sim/simulate';
 import type { StageSpec, Vehicle } from '../sim/vehicle';
 import { ATMO_FRAG, ATMO_VERT, EARTH_FRAG, EARTH_VERT, PLUME_FRAG, PLUME_VERT } from './shaders';
 
-export type CameraMode = 'chase' | 'tracking' | 'orbital';
+export type CameraMode = 'chase' | 'tracking' | 'orbital' | 'booster';
 
 const KM = 1e-3;
 const RE_KM = R_EQ * KM;
@@ -77,6 +77,9 @@ export class FlightScene {
   private sun: THREE.DirectionalLight;
   private sunDir: THREE.Vector3;
   private debris: Debris[] = [];
+  private barge: THREE.Group | null = null;
+  /** When set, the scene renders only the first stage at this (booster) state */
+  private soloStage0 = false;
   private stageOffsets: number[] = [];
   private stackH = 50;
   private last = { stage: 0, boosters: true, fairing: true };
@@ -233,6 +236,38 @@ export class FlightScene {
     return g;
   }
 
+  /** Autonomous landing barge: 91 × 52 m deck, stationed at the predicted landing point. */
+  private buildBarge(ecef: Vec3): THREE.Group {
+    const g = new THREE.Group();
+    const hull = new THREE.Mesh(new THREE.BoxGeometry(91, 6, 52), new THREE.MeshStandardMaterial({ color: 0x2f3438, roughness: 0.8 }));
+    hull.position.y = -2;
+    g.add(hull);
+    const deck = new THREE.Mesh(new THREE.CircleGeometry(18, 48), new THREE.MeshBasicMaterial({ color: 0xe6ebec }));
+    deck.rotation.x = -Math.PI / 2;
+    deck.position.y = 1.05;
+    g.add(deck);
+    const ring = new THREE.Mesh(new THREE.RingGeometry(16, 18, 48), new THREE.MeshBasicMaterial({ color: 0xb9821a }));
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.y = 1.1;
+    g.add(ring);
+    g.scale.setScalar(KM);
+    const n = new THREE.Vector3(...unit(ecef));
+    g.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), n);
+    g.position.copy(toV(ecef, KM));
+    this.earth.add(g);
+    return g;
+  }
+
+  /** Render the returning first stage instead of the ascending vehicle. */
+  updateBooster(s: Sample, t: number, wallTime: number) {
+    this.soloStage0 = true;
+    try {
+      this.update(s, t, wallTime);
+    } finally {
+      this.soloStage0 = false;
+    }
+  }
+
   private buildStage(s: StageSpec, isTop: boolean): THREE.Group {
     const g = new THREE.Group();
     const body = new THREE.MeshStandardMaterial({ color: 0xe8ecef, roughness: 0.45, metalness: 0.05 });
@@ -369,6 +404,11 @@ export class FlightScene {
       this.scene.remove(this.orbitLine);
       this.orbitLine = null;
     }
+    if (this.barge) {
+      this.earth.remove(this.barge);
+      this.barge = null;
+    }
+    if (r?.recovery?.mode === 'droneship') this.barge = this.buildBarge(r.recovery.target);
     if (r) {
       const pos = new Float32Array(r.samples.length * 3);
       r.samples.forEach((s, i) => pos.set([s.pos[0] * KM, s.pos[1] * KM, s.pos[2] * KM], i * 3));
@@ -420,28 +460,27 @@ export class FlightScene {
     const dir = toV(s.dir);
     this.rocket.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
 
-    // ---- staging visuals ----
-    if (this.result) {
-      if (s.stage > this.last.stage) {
-        for (let i = this.last.stage; i < s.stage; i++) {
-          const g = this.stageGroups[i];
-          if (!g) continue;
-          this.spawnDebris(g, s);
-          g.visible = false;
+    // ---- staging visuals: spawn debris on transitions, enforce visibility every frame ----
+    if (this.soloStage0) {
+      this.stageGroups.forEach((g, i) => (g.visible = i === 0));
+      if (this.boosterGroup) this.boosterGroup.visible = false;
+      if (this.fairingGroup) this.fairingGroup.visible = false;
+    } else {
+      if (this.result) {
+        if (s.stage > this.last.stage) {
+          for (let i = this.last.stage; i < s.stage; i++) {
+            const g = this.stageGroups[i];
+            // A recovered stage gets its own camera; don't also draw it tumbling away
+            if (g && !(i === 0 && this.result.recovery)) this.spawnDebris(g, s);
+          }
         }
+        if (this.boosterGroup && this.last.boosters && !s.boosters) this.boosterGroup.children.forEach((c) => this.spawnDebris(c, s, 3));
+        if (this.fairingGroup && this.last.fairing && !s.fairing) this.fairingGroup.children.forEach((c) => this.spawnDebris(c, s, 6));
+        this.last = { stage: s.stage, boosters: s.boosters, fairing: s.fairing };
       }
-      if (s.stage < this.last.stage) this.stageGroups.forEach((g, i) => (g.visible = i >= s.stage));
-      if (this.boosterGroup) {
-        if (this.last.boosters && !s.boosters) {
-          this.boosterGroup.children.forEach((c) => this.spawnDebris(c, s, 3));
-        }
-        this.boosterGroup.visible = s.boosters;
-      }
-      if (this.fairingGroup) {
-        if (this.last.fairing && !s.fairing) this.fairingGroup.children.forEach((c) => this.spawnDebris(c, s, 6));
-        this.fairingGroup.visible = s.fairing;
-      }
-      this.last = { stage: s.stage, boosters: s.boosters, fairing: s.fairing };
+      this.stageGroups.forEach((g, i) => (g.visible = i >= s.stage));
+      if (this.boosterGroup) this.boosterGroup.visible = s.boosters;
+      if (this.fairingGroup) this.fairingGroup.visible = s.fairing;
     }
     this.debris = this.debris.filter((d) => {
       const dt = t - d.t0;
@@ -500,6 +539,7 @@ export class FlightScene {
 
     // ---- sky, stars, sun ----
     const sky = this.mode === 'orbital' ? new THREE.Color(0) : skyColor(s.rho);
+    if (this.barge) this.barge.visible = this.mode !== 'orbital';
     this.scene.background = sky;
     const dark = this.mode === 'orbital' ? 1 : Math.max(0, 1 - sky.getHSL({ h: 0, s: 0, l: 0 }).l * 4);
     (this.stars.material as THREE.PointsMaterial).opacity = dark;
@@ -513,7 +553,7 @@ export class FlightScene {
     const N = toV(north);
     const center = dir.clone().multiplyScalar(this.visibleCenter(s) * KM);
     this.marker.visible = false;
-    if (this.mode === 'chase') {
+    if (this.mode === 'chase' || this.mode === 'booster') {
       const { yaw, pitch, dist } = this.orbitCam;
       const off = E.clone()
         .multiplyScalar(Math.cos(pitch) * Math.cos(yaw))
@@ -572,6 +612,7 @@ export class FlightScene {
 
   /** Height of the middle of what is still attached, along the vehicle axis [m]. */
   private visibleCenter(s: Sample): number {
+    if (this.soloStage0) return (this.stageOffsets[0] ?? 0) + this.vehicle.stages[0].length / 2;
     const lo = this.stageOffsets[Math.min(s.stage, this.stageOffsets.length - 1)] ?? 0;
     const hi = s.fairing ? this.stackH : this.stackH - this.vehicle.fairing.length;
     return (lo + hi) / 2;

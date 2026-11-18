@@ -3,7 +3,8 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { RAD } from '../physics/constants';
 import { AltitudeTape, ArcGauge, BarMeter, Countdown } from '../components/flight/Instruments';
 import { EngineAudio } from '../lib/engineAudio';
-import { fmtClock, sampleAt } from '../sim/playback';
+import { boosterSampleAt, fmtClock, sampleAt } from '../sim/playback';
+import type { RecoverySample } from '../sim/recovery';
 import { simulate, type EngineFailure, type FlightEvent, type FlightResult, type Sample } from '../sim/simulate';
 import { liftoffThrust } from '../sim/vehicle';
 import { useSim } from '../sim/store';
@@ -13,6 +14,17 @@ import './flight.css';
 type Phase = 'ready' | 'countdown' | 'flying' | 'paused' | 'done';
 const WARPS = [1, 5, 10, 25, 50];
 const COUNT = 10;
+
+const PHASE_LABEL: Record<RecoverySample['phase'], string> = {
+  flip: 'Flip manoeuvre',
+  boostback: 'Boostback burn',
+  coast: 'Coasting',
+  entry: 'Entry burn',
+  descent: 'Aerodynamic descent, grid fins steering',
+  landing: 'Landing burn',
+  landed: 'Landed',
+  lost: 'Lost',
+};
 
 const OUTCOME_TITLE: Record<FlightResult['outcome'], string> = {
   orbit: 'Orbit achieved',
@@ -35,6 +47,9 @@ export default function Flight() {
   const [hud, setHud] = useState<{ t: number; s: Sample | null }>({ t: -COUNT, s: null });
   const [more, setMore] = useState(false);
   const [toast, setToast] = useState<FlightEvent | null>(null);
+  const [boosterHud, setBoosterHud] = useState<RecoverySample | null>(null);
+  const camRef = useRef<CameraMode>('chase');
+  camRef.current = cam;
   const [sound, setSound] = useState(false);
   const [failures, setFailures] = useState<EngineFailure[]>([]);
   const audioRef = useRef<EngineAudio | null>(null);
@@ -125,8 +140,10 @@ export default function Flight() {
       const t = tRef.current;
       if (sc && r && r.samples.length) {
         const s = sampleAt(r.samples, Math.max(t, 0));
+        const bs = camRef.current === 'booster' && r.recovery ? boosterSampleAt(r.recovery.samples, t) : null;
         try {
-          sc.update(s, t, now / 1000);
+          if (bs) sc.updateBooster(bs.sample, t, now / 1000);
+          else sc.update(s, t, now / 1000);
         } catch (err) {
           console.error('Flight scene update failed at T+' + t.toFixed(1), err);
         }
@@ -146,6 +163,7 @@ export default function Flight() {
         if (now - hudClock > 80) {
           hudClock = now;
           setHud({ t, s });
+          setBoosterHud(bs ? bs.rec : null);
         }
       }
     };
@@ -236,8 +254,9 @@ export default function Flight() {
   const s = hud.s;
   const passed = useMemo(() => (result?.events ?? []).filter((e) => e.t <= hud.t), [result, hud.t]);
   const showVerdict = result && (phase === 'done' || (result.cutoffState && hud.t > result.cutoffState.t + 4));
-  const skyCss = s && cam !== 'orbital' ? `#${skyColor(s.rho).getHexString()}` : '#000000';
-  const dark = cam === 'orbital' || (s ? skyColor(s.rho).getHSL({ h: 0, s: 0, l: 0 }).l < 0.42 : false);
+  const viewRho = cam === 'booster' && boosterHud ? boosterHud.rho : s?.rho;
+  const skyCss = viewRho !== undefined && cam !== 'orbital' ? `#${skyColor(viewRho).getHexString()}` : '#000000';
+  const dark = cam === 'orbital' || (viewRho !== undefined ? skyColor(viewRho).getHSL({ h: 0, s: 0, l: 0 }).l < 0.42 : false);
 
   if (result && result.outcome === 'no-liftoff') {
     return (
@@ -286,6 +305,7 @@ export default function Flight() {
             ['chase', 'Chase'],
             ['tracking', 'Ground tracker'],
             ['orbital', 'Orbital'],
+            ...(result?.recovery ? ([['booster', 'Booster']] as const) : []),
           ] as const
         ).map(([k, label]) => (
           <button key={k} role="radio" aria-checked={cam === k} className={cam === k ? 'on' : ''} onClick={() => setCam(k)}>
@@ -316,7 +336,7 @@ export default function Flight() {
         </aside>
       )}
 
-      {s && phase !== 'ready' && (
+      {s && phase !== 'ready' && cam !== 'booster' && (
         <section className="flight-hud" aria-label="Flight data">
           <div className="gauges">
             <ArcGauge
@@ -363,7 +383,44 @@ export default function Flight() {
         </section>
       )}
 
-      {s && phase !== 'ready' && cam !== 'orbital' && <AltitudeTape altKm={s.alt / 1000} events={passed} />}
+      {s && phase !== 'ready' && cam !== 'orbital' && cam !== 'booster' && <AltitudeTape altKm={s.alt / 1000} events={passed} />}
+
+      {cam === 'booster' && result?.recovery && (
+        <aside className="booster-hud" aria-label="Booster recovery">
+          <h3>First stage, {result.recovery.mode === 'rtls' ? 'returning to the launch site' : 'heading for the droneship'}</h3>
+          {boosterHud ? (
+            <dl>
+              <div>
+                <dt>Phase</dt>
+                <dd>{PHASE_LABEL[boosterHud.phase]}</dd>
+              </div>
+              <div>
+                <dt>Altitude</dt>
+                <dd className="num">{(boosterHud.alt / 1000).toFixed(boosterHud.alt < 10000 ? 2 : 1)} km</dd>
+              </div>
+              <div>
+                <dt>Speed</dt>
+                <dd className="num">{boosterHud.speed.toFixed(0)} m/s</dd>
+              </div>
+              <div>
+                <dt>Vertical speed</dt>
+                <dd className="num">{boosterHud.vVertical.toFixed(0)} m/s</dd>
+              </div>
+              <div>
+                <dt>Propellant left</dt>
+                <dd className="num">{(boosterHud.prop / 1000).toFixed(1)} t</dd>
+              </div>
+              <div>
+                <dt>To {result.recovery.mode === 'rtls' ? 'pad' : 'ship'}</dt>
+                <dd className="num">{boosterHud.distToTarget < 2000 ? `${boosterHud.distToTarget.toFixed(0)} m` : `${(boosterHud.distToTarget / 1000).toFixed(1)} km`}</dd>
+              </div>
+            </dl>
+          ) : (
+            <p>Still attached. This camera picks it up at stage separation.</p>
+          )}
+          {boosterHud && (boosterHud.phase === 'landed' || boosterHud.phase === 'lost') && <p className={'booster-result ' + boosterHud.phase}>{result.recovery.verdict}</p>}
+        </aside>
+      )}
 
       {showVerdict && result && (
         <aside className={'flight-verdict ' + result.outcome}>
@@ -394,6 +451,7 @@ export default function Flight() {
               </div>
             </dl>
           )}
+          {result.recovery && <p className={'flight-verdict-booster ' + (result.recovery.success ? 'ok' : 'no')}>{result.recovery.verdict}</p>}
           <div className="flight-verdict-actions">
             <Link className="btn small" to="/telemetry/altitude">
               Read the telemetry

@@ -1,3 +1,4 @@
+import type { RecoverySample } from './recovery';
 import type { Sample } from './simulate';
 import type { Vec3 } from '../physics/vec';
 
@@ -50,3 +51,45 @@ export const fmtClock = (t: number) => {
   const sec = Math.floor(s % 60);
   return `T${sign} ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
 };
+
+/** Interpolated booster state, shaped as a telemetry Sample so the 3D scene can draw it. */
+export function boosterSampleAt(rs: RecoverySample[], t: number): { sample: Sample; rec: RecoverySample } | null {
+  if (!rs.length || t < rs[0].t) return null;
+  let i = 0;
+  while (i < rs.length - 2 && rs[i + 1].t <= t) i++;
+  const a = rs[i];
+  const b = rs[Math.min(i + 1, rs.length - 1)];
+  const f = b.t > a.t ? Math.max(0, Math.min(1, (t - a.t) / (b.t - a.t))) : 0;
+  const L = (x: number, y: number) => x + (y - x) * f;
+  const rec: RecoverySample = {
+    ...a,
+    t,
+    pos: lerpV(a.pos, b.pos, f),
+    dir: a.burning === b.burning ? lerpV(a.dir, b.dir, f) : a.dir,
+    alt: L(a.alt, b.alt),
+    speed: L(a.speed, b.speed),
+    vVertical: L(a.vVertical, b.vVertical),
+    q: L(a.q, b.q),
+    prop: L(a.prop, b.prop),
+    rho: L(a.rho, b.rho),
+    pressure: L(a.pressure, b.pressure),
+    distToTarget: L(a.distToTarget, b.distToTarget),
+  };
+  const sample = {
+    t,
+    pos: rec.pos,
+    dir: rec.dir,
+    alt: rec.alt,
+    rho: rec.rho,
+    pressure: rec.pressure,
+    q: rec.q,
+    stage: 0,
+    boosters: false,
+    fairing: false,
+    burning: rec.burning,
+    throttle: rec.throttle,
+    thrust: rec.burning ? 1 : 0,
+    mass: 1,
+  } as Sample;
+  return { sample, rec };
+}

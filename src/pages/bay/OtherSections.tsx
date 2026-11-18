@@ -9,7 +9,7 @@ import { SITES } from '../../sim/presets';
 import { launchAzimuth } from '../../sim/simulate';
 import { useSim } from '../../sim/store';
 import { tunePitchKick, type TuneResult } from '../../sim/tune';
-import { liftoffMass, liftoffThrust } from '../../sim/vehicle';
+import { DEFAULT_RECOVERY, liftoffMass, liftoffThrust } from '../../sim/vehicle';
 
 const PROP_KINDS = Object.keys(PROPELLANTS) as PropellantKind[];
 
@@ -366,6 +366,111 @@ export function SiteSection() {
           <Derived label="Free speed from Earth’s rotation" value={boost.toFixed(0)} unit="m/s" note="ω·R·cos(latitude), eastward." />
           <Derived label="Lowest inclination reachable directly" value={Math.abs(s.lat).toFixed(1)} unit="°" />
           <Derived label="Surface pressure" value={(atmosphere(s.elevation).p / 1000).toFixed(1)} unit="kPa" note={`${((atmosphere(s.elevation).p / P0) * 100).toFixed(1)} % of sea level`} />
+        </dl>
+      </aside>
+    </>
+  );
+}
+
+export function RecoverySection() {
+  const { vehicle, update } = useSim();
+  const rec = { ...DEFAULT_RECOVERY, ...(vehicle.recovery ?? {}) };
+  const s0 = vehicle.stages[0];
+  const set = (mut: (r: typeof rec) => void) =>
+    update((v) => {
+      const next = { ...DEFAULT_RECOVERY, ...(v.recovery ?? {}) };
+      mut(next);
+      v.recovery = next;
+    });
+  const reserve = s0.propMass * rec.reserveFraction;
+  const dvReserve = s0.engine.ispVac * G0 * Math.log((s0.dryMass + reserve) / s0.dryMass);
+  const one = { ...s0.engine, count: Math.min(rec.landingEngines, s0.engine.count) };
+  const twEmpty = seaLevelThrust(one) / (s0.dryMass * G0);
+  const twMinThrottle = (seaLevelThrust(one) * one.throttleMin) / (s0.dryMass * G0);
+  return (
+    <>
+      <div className="bay-form">
+        <h2>Recovery</h2>
+        <p className="bay-intro">
+          Land the first stage and fly it again. The price is propellant held back for the return: it still has to be lifted
+          off the pad, but it can't be burned for the climb, so the payload shrinks.
+        </p>
+        <SelectField
+          label="Recover the first stage"
+          value={rec.enabled ? 'yes' : 'no'}
+          options={[
+            { value: 'yes', label: 'Yes' },
+            { value: 'no', label: 'No, expend it' },
+          ]}
+          onChange={(x) => set((r) => void (r.enabled = x === 'yes'))}
+        />
+        {rec.enabled && (
+          <>
+            <SelectField
+              label="Landing site"
+              hint="A droneship waits downrange where the stage would land anyway. Returning to the launch site needs a boostback burn to cancel all that downrange speed, so it costs far more propellant."
+              value={rec.mode}
+              options={[
+                { value: 'droneship', label: 'Droneship downrange' },
+                { value: 'rtls', label: 'Return to launch site' },
+              ]}
+              onChange={(x) => set((r) => void (r.mode = x))}
+            />
+            <NumField
+              label="Propellant held in reserve"
+              hint="Share of the first stage's load kept for boostback, entry and landing. Too little and the stage runs dry before touchdown."
+              value={rec.reserveFraction}
+              scale={100}
+              unit="%"
+              min={0}
+              max={40}
+              onChange={(x) => set((r) => void (r.reserveFraction = x))}
+            />
+            {rec.mode === 'rtls' && (
+              <NumField label="Boostback engines" value={rec.boostbackEngines} step={1} min={1} max={s0.engine.count} onChange={(x) => set((r) => void (r.boostbackEngines = Math.round(x)))} />
+            )}
+            <NumField
+              label="Entry burn starts below"
+              hint="Relighting engines high up slows the stage before the air gets thick, cutting peak heating and loads."
+              value={rec.entryStartAlt}
+              scale={0.001}
+              unit="km"
+              min={20}
+              max={120}
+              onChange={(x) => set((r) => void (r.entryStartAlt = x))}
+            />
+            <NumField label="Entry burn Δv" value={rec.entryDv} unit="m/s" min={0} max={3000} onChange={(x) => set((r) => void (r.entryDv = x))} />
+            <NumField label="Entry burn engines" value={rec.entryEngines} step={1} min={1} max={s0.engine.count} onChange={(x) => set((r) => void (r.entryEngines = Math.round(x)))} />
+            <NumField
+              label="Landing burn engines"
+              hint="One engine is usual: even at minimum throttle, more would push a near-empty stage back upward."
+              value={rec.landingEngines}
+              step={1}
+              min={1}
+              max={s0.engine.count}
+              onChange={(x) => set((r) => void (r.landingEngines = Math.round(x)))}
+            />
+            <NumField label="Drag coefficient, engines first" value={rec.cdDescent} min={0.3} max={2.5} onChange={(x) => set((r) => void (r.cdDescent = x))} />
+          </>
+        )}
+      </div>
+      <aside className="bay-derived">
+        <h3>What this means</h3>
+        <dl>
+          {rec.enabled ? (
+            <>
+              <Derived label="Reserve propellant" value={(reserve / 1000).toFixed(1)} unit="t" note="Carried to separation, unusable for the climb." />
+              <Derived label="Δv available to the empty stage" value={dvReserve.toFixed(0)} unit="m/s" note="Rocket equation on dry mass plus reserve, vacuum Isp. Air and gravity take a big share of it." />
+              <Derived
+                label="Landing thrust-to-weight, near empty"
+                value={twEmpty.toFixed(2)}
+                warn={twMinThrottle > 1}
+                note={twMinThrottle > 1 ? `Even at minimum throttle it's ${twMinThrottle.toFixed(2)}: the stage can't hover, so the burn must end exactly at the ground (a "hoverslam").` : 'Can hover at low throttle.'}
+              />
+            </>
+          ) : (
+            <Derived label="Stage is expended" value="0" unit="t reserve" note="Every kilogram goes to the climb. Maximum payload, one flight per stage." />
+          )}
         </dl>
       </aside>
     </>

@@ -6,7 +6,7 @@ import { RAD } from '../physics/constants';
 import { simulate, type FlightResult } from '../sim/simulate';
 import { useSim } from '../sim/store';
 import { EnginesSection, StagesSection } from './bay/StageSections';
-import { AeroSection, BoostersSection, GuidanceSection, PayloadSection, SiteSection } from './bay/OtherSections';
+import { AeroSection, BoostersSection, GuidanceSection, PayloadSection, RecoverySection, SiteSection } from './bay/OtherSections';
 import './bay.css';
 
 const SECTIONS: Array<[string, string]> = [
@@ -16,6 +16,7 @@ const SECTIONS: Array<[string, string]> = [
   ['payload', 'Payload and fairing'],
   ['aero', 'Aerodynamics'],
   ['guidance', 'Guidance'],
+  ['recovery', 'Recovery'],
   ['site', 'Launch site'],
 ];
 
@@ -36,7 +37,9 @@ export default function VehicleBay() {
             ? { kind: 'fairing' }
             : section === 'aero'
               ? { kind: 'all' }
-              : null;
+              : section === 'recovery'
+                ? { kind: 'stage', index: 0 }
+                : null;
 
   return (
     <div className="bay">
@@ -71,6 +74,7 @@ export default function VehicleBay() {
         {section === 'aero' && <AeroSection />}
         {section === 'guidance' && <GuidanceSection />}
         {section === 'site' && <SiteSection />}
+        {section === 'recovery' && <RecoverySection />}
       </div>
       <FlightCheck />
     </div>
