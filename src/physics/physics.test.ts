@@ -92,3 +92,14 @@ describe('Propulsion', () => {
     expect(idealDeltaV(300, Math.E, 1)).toBeCloseTo(300 * 9.80665, 6);
   });
 });
+
+import { areaRatio, exitMach, exitPressure } from './nozzle';
+describe('Isentropic nozzle', () => {
+  it('A/A* = 1 at M = 1', () => expect(areaRatio(1, 1.4)).toBeCloseTo(1, 10));
+  it('γ=1.4, ε=1.6875 gives M=2 (textbook table)', () => expect(exitMach(1.6875, 1.4)).toBeCloseTo(2, 3));
+  it('sea-level kerolox engine (pc 97 bar, ε 16) exits near ambient', () => {
+    const pe = exitPressure(97e5, 16, 1.2);
+    expect(pe).toBeGreaterThan(40e3);
+    expect(pe).toBeLessThan(110e3);
+  });
+});
