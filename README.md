@@ -5,6 +5,8 @@ Build or edit a vehicle, fly it to orbit in 3D, read the telemetry, and work thr
 
 **Audience:** undergraduate engineering students and anyone comfortable with first-year calculus and mechanics.
 
+Technical report: [docs/report.md](docs/report.md) covers the architecture, technology stack, physics and avionics models, verification against published data, and limitations.
+
 ## Pages
 
 | Page | Job |

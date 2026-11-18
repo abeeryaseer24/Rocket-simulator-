@@ -46,6 +46,18 @@ export default function About() {
           A hobby project: a launch-vehicle simulator written from first principles, where every number on screen comes from an
           equation you can read. This page explains how it was built, from the physics kernels to the pixels.
         </p>
+        <div className="ab-report">
+          <div>
+            <strong>Technical report</strong>
+            <span>Architecture, technology stack, models, verification and limitations. 15 sections, A4.</span>
+          </div>
+          <a className="btn" href="/report.pdf" target="_blank" rel="noreferrer">
+            Open the PDF
+          </a>
+          <a className="btn ghost" href="https://github.com/abeeryaseer24/Rocket-simulator-/blob/main/docs/report.md" target="_blank" rel="noreferrer">
+            Read on GitHub
+          </a>
+        </div>
       </header>
 
       <div className="ab-layout">
