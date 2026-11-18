@@ -3,6 +3,8 @@ import { NavLink, useParams } from 'react-router-dom';
 import Chart, { SERIES_COLORS } from '../components/Chart';
 import { NumField } from '../components/Field';
 import { DEFAULT_DISPERSIONS, stats, type Dispersions, type McRun } from '../sim/analysis';
+import OptimiseTool from './analysis/OptimiseTool';
+import ValidationTool from './analysis/ValidationTool';
 import type { WorkerRequest } from '../sim/analysis.worker';
 import { useSim } from '../sim/store';
 import './analysis.css';
@@ -40,8 +42,14 @@ export default function Analysis() {
         <NavLink to="/analysis/payload" className={({ isActive }) => (isActive ? 'active' : '')}>
           Payload capacity
         </NavLink>
+        <NavLink to="/analysis/optimise" className={({ isActive }) => (isActive ? 'active' : '')}>
+          Trajectory optimiser
+        </NavLink>
+        <NavLink to="/analysis/validation" className={({ isActive }) => (isActive ? 'active' : '')}>
+          Validation
+        </NavLink>
       </nav>
-      {tool === 'payload' ? <PayloadTool /> : <DispersionTool />}
+      {tool === 'payload' ? <PayloadTool /> : tool === 'optimise' ? <OptimiseTool /> : tool === 'validation' ? <ValidationTool /> : <DispersionTool />}
     </div>
   );
 }
