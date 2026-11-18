@@ -80,6 +80,36 @@ export class EngineAudio {
     this.filter.frequency.setTargetAtTime(180 + 900 * level, now, 0.2);
   }
 
+  /** Short countdown tone with a soft attack/decay envelope. */
+  beep(freq = 880, dur = 0.14, vol = 0.22) {
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+    const o = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+    o.type = 'sine';
+    o.frequency.value = freq;
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(vol, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(this.ctx.destination);
+    o.start(t);
+    o.stop(t + dur + 0.05);
+  }
+
+  /** Launch-control voice via the browser's speech synthesiser (no audio files shipped). */
+  static speak(text: string) {
+    const synth = typeof window !== 'undefined' ? window.speechSynthesis : undefined;
+    if (!synth) return;
+    synth.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = 1.05;
+    u.pitch = 0.85;
+    u.volume = 1;
+    const voice = synth.getVoices().find((v) => /en[-_](US|GB)/i.test(v.lang) && /male|david|daniel|alex|guy/i.test(v.name)) ?? synth.getVoices().find((v) => /^en/i.test(v.lang));
+    if (voice) u.voice = voice;
+    synth.speak(u);
+  }
+
   stop() {
     if (!this.ctx) return;
     this.set(0, 0);

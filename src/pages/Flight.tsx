@@ -50,7 +50,8 @@ export default function Flight() {
   const [boosterHud, setBoosterHud] = useState<RecoverySample | null>(null);
   const camRef = useRef<CameraMode>('chase');
   camRef.current = cam;
-  const [sound, setSound] = useState(false);
+  const [sound, setSound] = useState(true);
+  const lastCdRef = useRef<number | null>(null);
   const [failures, setFailures] = useState<EngineFailure[]>([]);
   const audioRef = useRef<EngineAudio | null>(null);
   const soundRef = useRef(false);
@@ -126,7 +127,24 @@ export default function Flight() {
       const ph = phaseRef.current;
       if (ph === 'countdown') {
         tRef.current += dtWall;
-        if (tRef.current >= 0) setPhase('flying');
+        const cd = Math.ceil(-tRef.current);
+        if (cd !== lastCdRef.current) {
+          lastCdRef.current = cd;
+          const au = audioRef.current;
+          if (soundRef.current && au) {
+            if (cd >= 1 && cd <= 10) {
+              au.beep(cd <= 3 ? 1180 : 880, cd <= 3 ? 0.22 : 0.14);
+              EngineAudio.speak(cd === 10 ? 'T minus ten' : cd === 3 ? 'Three. Ignition sequence start' : String(cd));
+            }
+          }
+        }
+        if (tRef.current >= 0) {
+          if (soundRef.current && audioRef.current) {
+            audioRef.current.beep(660, 0.7, 0.25);
+            EngineAudio.speak('Liftoff. We have liftoff.');
+          }
+          setPhase('flying');
+        }
       } else if (ph === 'flying' && r && r.samples.length) {
         // Cinematic liftoff: real time off the pad, then ease into the chosen warp
         const ramp = Math.min(warpRef.current, 1 + Math.max(0, tRef.current - 8) * 0.6);
@@ -174,8 +192,10 @@ export default function Flight() {
   useEffect(() => () => audioRef.current?.dispose(), []);
   const toggleSound = () => {
     if (!audioRef.current) audioRef.current = new EngineAudio();
-    if (sound) audioRef.current.stop();
-    else audioRef.current.start();
+    if (sound) {
+      audioRef.current.stop();
+      window.speechSynthesis?.cancel();
+    } else audioRef.current.start();
     setSound(!sound);
   };
 
@@ -189,6 +209,25 @@ export default function Flight() {
   };
 
   useEffect(() => {
+    if (!toast || !soundRef.current) return;
+    const say: Partial<Record<FlightEvent['kind'], string>> = {
+      'max-q': 'Max Q',
+      'booster-sep': 'Booster separation',
+      meco: 'Main engine cutoff',
+      'stage-sep': 'Stage separation confirmed',
+      ignition: 'Second stage ignition',
+      'fairing-sep': 'Fairing separation',
+      karman: 'Vehicle is in space',
+      seco: 'Engine cutoff. Orbit insertion confirmed',
+      depletion: 'Propellant depleted',
+      impact: 'Vehicle lost',
+      'engine-out': 'Engine out',
+    };
+    const line = say[toast.kind];
+    if (line) EngineAudio.speak(line);
+  }, [toast]);
+
+  useEffect(() => {
     if (!toast) return;
     const id = setTimeout(() => setToast(null), 4500);
     return () => clearTimeout(id);
@@ -196,7 +235,14 @@ export default function Flight() {
 
   // ---- controls ----
   const primary = useCallback(() => {
-    if (phase === 'ready') setPhase('countdown');
+    if (phase === 'ready') {
+      if (soundRef.current) {
+        if (!audioRef.current) audioRef.current = new EngineAudio();
+        audioRef.current.start();
+      }
+      lastCdRef.current = null;
+      setPhase('countdown');
+    }
     else if (phase === 'countdown' || phase === 'flying') setPhase('paused');
     else if (phase === 'paused') setPhase(tRef.current < 0 ? 'countdown' : 'flying');
     else if (phase === 'done') {
