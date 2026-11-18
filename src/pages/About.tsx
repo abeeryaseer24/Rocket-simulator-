@@ -73,7 +73,7 @@ export default function About() {
               <li><Link to="/flight">Flight</Link>: the 3D ascent with countdown, gauges, audio and engine-out injection.</li>
               <li><Link to="/vehicle">Vehicle</Link>: edit one subsystem at a time, with hand-calculations beside every input.</li>
               <li><Link to="/telemetry">Telemetry</Link>: nineteen channels, the Δv loss ledger and the event log.</li>
-              <li><Link to="/missions">Missions</Link>: scored challenges with personal bests.</li>
+              <li><Link to="/missions">Play</Link>: scored challenges, launches from the Moon and Mars, and replicas of historic flights.</li>
               <li><Link to="/analysis">Analysis</Link>: Monte Carlo, payload curves, the trajectory optimiser and validation.</li>
               <li><Link to="/avionics">Avionics</Link>: nine pages of electrical models, from batteries to error-correcting codes.</li>
               <li><Link to="/academy">Academy</Link>: thirteen lessons deriving the equations, each with a live figure.</li>
@@ -106,6 +106,10 @@ export default function About() {
               the step is shortened to end exactly at depletion, so staging happens at the right instant. Alongside the motion the
               integrator keeps a ledger of where the Δv went: gravity loss, drag loss and steering loss. That ledger is what the
               telemetry page charts.
+            </p>
+            <p>
+              Launches from the Moon and Mars use a separate planar simulator that is generic over the central body: its
+              gravitational parameter, radius, rotation and atmosphere (none for the Moon, a NASA Glenn curve fit for Mars).
             </p>
             <p>
               Optional models switch on extra physics: a rigid-body pitch/yaw attitude model with a gimballed-engine autopilot and

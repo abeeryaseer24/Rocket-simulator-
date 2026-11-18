@@ -270,10 +270,15 @@ button {
   .rail nav {
     flex-direction: row;
     width: 100%;
-    justify-content: space-around;
+    justify-content: space-between;
+    /* Ten destinations don't fit a phone: let the bar scroll sideways */
+    overflow-x: auto;
+    scrollbar-width: none;
   }
   .rail a.nav {
     padding: 8px 4px;
+    flex: 0 0 auto;
+    min-width: 62px;
   }
   .rail a.nav.active::before {
     left: 20%;
