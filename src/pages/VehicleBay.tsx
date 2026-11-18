@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, useNavigate, useParams } from 'react-router-dom';
 import RocketElevation, { type Highlight } from '../components/RocketElevation';
+import ShareButton from '../components/ShareButton';
 import { RAD } from '../physics/constants';
 import { simulate, type FlightResult } from '../sim/simulate';
 import { useSim } from '../sim/store';
@@ -49,6 +50,7 @@ export default function VehicleBay() {
             aria-label="Vehicle name"
           />
         </div>
+        <ShareButton className="btn small ghost" />
       </header>
       <nav className="tabs" aria-label="Subsystems">
         {SECTIONS.map(([k, label]) => (

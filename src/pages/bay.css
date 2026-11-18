@@ -273,3 +273,10 @@ button.link:disabled {
     bottom: 76px;
   }
 }
+.bay-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+}

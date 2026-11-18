@@ -1,6 +1,8 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { Navigate, NavLink, Route, Routes } from 'react-router-dom';
+import { decodeVehicle } from './lib/share';
 import Hangar from './pages/Hangar';
+import { useSim } from './sim/store';
 
 const Flight = lazy(() => import('./pages/Flight'));
 const VehicleBay = lazy(() => import('./pages/VehicleBay'));
@@ -68,9 +70,37 @@ function Rail() {
   );
 }
 
+/** Opens a design shared as /#v=<code>, then clears the fragment. */
+function SharedDesignLoader() {
+  const { setVehicle } = useSim();
+  const [msg, setMsg] = useState<string | null>(null);
+  useEffect(() => {
+    const h = window.location.hash;
+    if (!h.startsWith('#v=')) return;
+    decodeVehicle(h.slice(3))
+      .then((v) => {
+        setVehicle(v);
+        setMsg(`Loaded a shared design: ${v.name}`);
+      })
+      .catch(() => setMsg('That share link is damaged or incomplete, so your own design was kept.'))
+      .finally(() => window.history.replaceState(null, '', window.location.pathname));
+  }, [setVehicle]);
+  useEffect(() => {
+    if (!msg) return;
+    const id = setTimeout(() => setMsg(null), 5000);
+    return () => clearTimeout(id);
+  }, [msg]);
+  return msg ? (
+    <div className="shared-banner" role="status">
+      {msg}
+    </div>
+  ) : null;
+}
+
 export default function App() {
   return (
     <div className="shell">
+      <SharedDesignLoader />
       <Rail />
       <main className="main">
         <Suspense fallback={<div className="page">Loading…</div>}>

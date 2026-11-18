@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import ClimbHero from '../components/ClimbHero';
 import RocketElevation, { stackHeight } from '../components/RocketElevation';
+import ShareButton from '../components/ShareButton';
 import { G0 } from '../physics/constants';
 import { PRESETS } from '../sim/presets';
 import { useSim } from '../sim/store';
@@ -90,6 +91,7 @@ export default function Hangar() {
             >
               Open in Vehicle Bay
             </button>
+            {chosen.key === 'mine' && <ShareButton />}
             {chosen.key === 'mine' && (
               <button
                 className="btn ghost"
