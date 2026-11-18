@@ -129,9 +129,12 @@ function SharedDesignLoader() {
 export default function App() {
   return (
     <div className="shell">
+      <a href="#main" className="skip-link">
+        Skip to content
+      </a>
       <SharedDesignLoader />
       <Rail />
-      <main className="main">
+      <main className="main" id="main" tabIndex={-1}>
         <Suspense fallback={<div className="page">Loading…</div>}>
           <Routes>
             <Route path="/" element={<Hangar />} />
