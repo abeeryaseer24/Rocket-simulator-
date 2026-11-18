@@ -90,6 +90,8 @@ export default function Flight() {
     let prev = performance.now();
     let hudClock = 0;
     const loop = (now: number) => {
+      // Schedule first: a throw further down must never stop the clock
+      raf = requestAnimationFrame(loop);
       const dtWall = Math.min((now - prev) / 1000, 0.1);
       prev = now;
       const r = resultRef.current;
@@ -109,7 +111,11 @@ export default function Flight() {
       const t = tRef.current;
       if (sc && r && r.samples.length) {
         const s = sampleAt(r.samples, Math.max(t, 0));
-        sc.update(s, t, now / 1000);
+        try {
+          sc.update(s, t, now / 1000);
+        } catch (err) {
+          console.error('Flight scene update failed at T+' + t.toFixed(1), err);
+        }
         // event toasts
         let idx = lastEventRef.current;
         while (idx + 1 < r.events.length && r.events[idx + 1].t <= t) idx++;
@@ -122,7 +128,6 @@ export default function Flight() {
           setHud({ t, s });
         }
       }
-      raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);

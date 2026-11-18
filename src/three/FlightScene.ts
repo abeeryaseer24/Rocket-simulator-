@@ -424,8 +424,10 @@ export class FlightScene {
     if (this.result) {
       if (s.stage > this.last.stage) {
         for (let i = this.last.stage; i < s.stage; i++) {
-          this.spawnDebris(this.stageGroups[i], s);
-          this.stageGroups[i].visible = false;
+          const g = this.stageGroups[i];
+          if (!g) continue;
+          this.spawnDebris(g, s);
+          g.visible = false;
         }
       }
       if (s.stage < this.last.stage) this.stageGroups.forEach((g, i) => (g.visible = i >= s.stage));

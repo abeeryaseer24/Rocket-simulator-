@@ -18,6 +18,9 @@ export function indexAt(samples: Sample[], t: number): number {
 const lerp = (a: number, b: number, f: number) => a + (b - a) * f;
 const lerpV = (a: Vec3, b: Vec3, f: number): Vec3 => [lerp(a[0], b[0], f), lerp(a[1], b[1], f), lerp(a[2], b[2], f)];
 
+/** Fields that index or flag something: never blend them between frames (stage 0.4 doesn't exist). */
+const DISCRETE = new Set<keyof Sample>(['stage', 'boosters', 'fairing', 'burning']);
+
 /** Linearly interpolated telemetry frame at time t. Discrete fields come from the earlier frame. */
 export function sampleAt(samples: Sample[], t: number): Sample {
   const i = indexAt(samples, t);
@@ -27,6 +30,7 @@ export function sampleAt(samples: Sample[], t: number): Sample {
   const f = Math.max(0, Math.min(1, (t - a.t) / (b.t - a.t)));
   const out = { ...a } as Sample;
   for (const k of Object.keys(a) as Array<keyof Sample>) {
+    if (DISCRETE.has(k)) continue;
     const va = a[k];
     const vb = b[k];
     if (typeof va === 'number' && typeof vb === 'number') (out as unknown as Record<string, number>)[k] = lerp(va, vb, f);
