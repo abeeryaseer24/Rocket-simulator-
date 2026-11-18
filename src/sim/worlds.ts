@@ -22,6 +22,8 @@ export interface AtmoState {
 export interface Body {
   id: 'moon' | 'mars' | 'earth';
   name: string;
+  /** Name as used mid-sentence: 'the Moon', 'Mars', 'Earth' */
+  called: string;
   /** Gravitational parameter [m³/s²] */
   mu: number;
   /** Mean radius [m] */
@@ -63,6 +65,7 @@ export const BODIES: Body[] = [
   {
     id: 'moon',
     name: 'Moon',
+    called: 'the Moon',
     mu: 4.9048695e12,
     radius: 1737.4e3,
     rotation: 27.321661 * 86400,
@@ -78,6 +81,7 @@ export const BODIES: Body[] = [
   {
     id: 'mars',
     name: 'Mars',
+    called: 'Mars',
     mu: 4.282837e13,
     radius: 3389.5e3,
     rotation: 88642.66,
@@ -93,6 +97,7 @@ export const BODIES: Body[] = [
   {
     id: 'earth',
     name: 'Earth',
+    called: 'Earth',
     mu: 3.986004418e14,
     radius: 6371.0e3,
     rotation: 86164.0905,
@@ -330,7 +335,7 @@ export function flyWorld(body: Body, rocket: WorldRocket, plan: FlightPlan): Wor
     };
     return {
       body, rocket, plan, samples: [s0, { ...s0, t: 5 }], events: [{ t: 0, label: 'Ignition, no liftoff' }], outcome: 'grounded',
-      verdict: `Thrust-to-weight is ${(F0 / w0).toFixed(2)} on the ${body.name}: the engines cannot lift the vehicle off the pad.`,
+      verdict: `Thrust-to-weight is ${(F0 / w0).toFixed(2)} on ${body.called}: the engines cannot lift the vehicle off the pad.`,
       apo: 0, peri: -R, propLeft: propTotal, propTotal, maxQ: 0, dvUsed: 0, final: { x, y, vx, vy },
     };
   }
@@ -559,11 +564,17 @@ export function flyWorld(body: Body, rocket: WorldRocket, plan: FlightPlan): Wor
   const km = (m: number) => `${(m / 1000).toFixed(0)} km`;
   const verdict =
     outcome === 'orbit'
-      ? `Orbit around the ${body.name}: ${km(el.peri)} × ${km(el.apo)}, with ${propLeft.toFixed(0)} kg of propellant to spare.`
+      ? `Orbit around ${body.called}: ${km(el.peri)} × ${km(el.apo)}, with ${propLeft.toFixed(0)} kg of propellant to spare.`
       : outcome === 'crashed'
-        ? `The vehicle came back down ${km(samples[samples.length - 1].downrange)} from the pad. Pitch over less, or carry more propellant.`
+        ? (() => {
+            const peak = Math.max(...samples.map((q) => q.alt));
+            const range = samples[samples.length - 1].downrange;
+            // A tall, short lob means it climbed but never built horizontal speed; a long, low arc means it turned too early
+            const advice = range < 3 * peak ? 'Pitch over more so the thrust builds horizontal speed.' : 'Pitch over less, or carry more propellant.';
+            return `The vehicle peaked at ${km(peak)} and came back down ${km(range)} from the pad. ${advice}`;
+          })()
         : el.apo === Infinity
-          ? `Too fast: the vehicle escaped the ${body.name}'s gravity. Aim lower or insert directly.`
+          ? `Too fast: the vehicle escaped the gravity of ${body.called}. Aim lower or insert directly.`
           : `Out of propellant on a suborbital ${km(Math.max(el.peri, -body.radius))} × ${km(el.apo)} path.`;
   return { body, rocket, plan, samples, events, outcome, verdict, apo: el.apo, peri: el.peri, propLeft, propTotal, maxQ, dvUsed, final: { x, y, vx, vy } };
 }

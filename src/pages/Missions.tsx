@@ -1,10 +1,12 @@
 import { useMemo, useState } from 'react';
 import { Link, NavLink, useNavigate, useParams } from 'react-router-dom';
 import { formatScore, isBetter, loadBests, MISSIONS, runMission, saveBests, type Bests, type Check } from '../sim/missions';
+import PlayTabs from '../components/PlayTabs';
 import { PRESETS } from '../sim/presets';
 import { useSim } from '../sim/store';
 import { cloneVehicle } from '../sim/vehicle';
 import './missions.css';
+import './worlds.css';
 
 export default function Missions() {
   const { mission: id } = useParams();
@@ -38,7 +40,7 @@ export default function Missions() {
   return (
     <div className="ms">
       <nav className="ms-nav" aria-label="Missions">
-        <h1>Missions</h1>
+        <h1>Challenges</h1>
         <p className="ms-progress num">
           {done} of {MISSIONS.length} complete
         </p>
@@ -55,6 +57,7 @@ export default function Missions() {
       </nav>
 
       <section className="ms-body">
+        <PlayTabs />
         <p className="ms-kicker">
           Mission {MISSIONS.indexOf(m) + 1}
           {m.site ? `, ${m.site.name}` : ''}

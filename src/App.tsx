@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
-import { Navigate, NavLink, Route, Routes } from 'react-router-dom';
+import { Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom';
 import { decodeVehicle } from './lib/share';
 import Hangar from './pages/Hangar';
 import { useSim } from './sim/store';
@@ -12,6 +12,8 @@ const Analysis = lazy(() => import('./pages/Analysis'));
 const Missions = lazy(() => import('./pages/Missions'));
 const Avionics = lazy(() => import('./pages/Avionics'));
 const About = lazy(() => import('./pages/About'));
+const Worlds = lazy(() => import('./pages/Worlds'));
+const History = lazy(() => import('./pages/History'));
 
 /* Line icons drawn for this app: each is the object the page is about. */
 const icons = {
@@ -79,12 +81,14 @@ const icons = {
 };
 
 function Rail() {
+  const { pathname } = useLocation();
+  const playActive = /^\/(missions|worlds|history)(\/|$)/.test(pathname);
   const items: Array<[string, string, keyof typeof icons]> = [
     ['/', 'Hangar', 'hangar'],
     ['/flight', 'Flight', 'flight'],
     ['/vehicle', 'Vehicle', 'vehicle'],
     ['/telemetry', 'Telemetry', 'telemetry'],
-    ['/missions', 'Missions', 'missions'],
+    ['/missions', 'Play', 'missions'],
     ['/analysis', 'Analysis', 'analysis'],
     ['/avionics', 'Avionics', 'avionics'],
     ['/academy', 'Academy', 'academy'],
@@ -97,7 +101,7 @@ function Rail() {
       </NavLink>
       <nav aria-label="Main">
         {items.map(([to, label, icon]) => (
-          <NavLink key={to} to={to} end={to === '/'} className={({ isActive }) => 'nav' + (isActive ? ' active' : '')}>
+          <NavLink key={to} to={to} end={to === '/'} className={({ isActive }) => 'nav' + ((to === '/missions' ? playActive : isActive) ? ' active' : '')}>
             {icons[icon]}
             {label}
           </NavLink>
@@ -154,6 +158,10 @@ export default function App() {
             <Route path="/telemetry/:channel" element={<Telemetry />} />
             <Route path="/missions" element={<Missions />} />
             <Route path="/missions/:mission" element={<Missions />} />
+            <Route path="/worlds" element={<Navigate to="/worlds/moon" replace />} />
+            <Route path="/worlds/:world" element={<Worlds />} />
+            <Route path="/history" element={<History />} />
+            <Route path="/history/:mission" element={<History />} />
             <Route path="/analysis" element={<Navigate to="/analysis/dispersion" replace />} />
             <Route path="/analysis/:tool" element={<Analysis />} />
             <Route path="/avionics" element={<Navigate to="/avionics/architecture" replace />} />
